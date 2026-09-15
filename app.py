@@ -3,7 +3,7 @@ import base64
 import re
 import io
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 from groq import Groq
 
@@ -12,7 +12,11 @@ load_dotenv(dotenv_path=env_path, override=True)
 
 app = Flask(__name__)
 CORS(app)
-
+# === THÊM ROUTE TRANG CHỦ TẠI ĐÂY ===
+@app.route('/')
+def home():
+    return render_template('index.html')
+# ====================================
 # Khởi tạo Groq Client với API Key từ file .env (GROQ_API_KEY)
 groq_api_key = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=groq_api_key) if groq_api_key else None
