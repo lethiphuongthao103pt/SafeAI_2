@@ -1093,8 +1093,7 @@
         try {
 
             const response =
-                await fetch(
-                    'http://127.0.0.1:5000/api/check-scam',
+                await fetch('/api/check-scam', { ... })
                     {
                         method: 'POST',
 
