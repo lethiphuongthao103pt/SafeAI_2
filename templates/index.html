@@ -11,9 +11,6 @@
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Thư viện ResponsiveVoice API cho giọng đọc tiếng Việt -->
-    <script src="https://code.responsivevoice.org/responsivevoice.js?key=FREE"></script>
-
     <style>
 
         /* =========================================================
@@ -266,22 +263,13 @@
         }
 
         @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.05);
-            }
-
-            100% {
-                transform: scale(1);
-            }
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
 
-
         /* =========================================================
-           MÀN HÌNH ĐĂNG NHẬP
+           MÀN HÌNH ĐĂNG NHẬP & PROFILE
         ========================================================= */
 
         .login-screen {
@@ -347,9 +335,7 @@
             outline: none;
         }
 
-        .login-box input:focus {
-            border-color: #0068FF;
-        }
+        .login-box input:focus { border-color: #0068FF; }
 
         .login-btn {
             width: 100%;
@@ -364,9 +350,7 @@
             margin-top: 5px;
         }
 
-        .login-btn:hover {
-            background: #0052CC;
-        }
+        .login-btn:hover { background: #0052CC; }
 
         #login-message {
             margin-top: 12px;
@@ -374,10 +358,6 @@
             font-size: 14px;
             font-weight: 600;
         }
-
-        /* =========================================================
-           HỘP HỒ SƠ CỦA CỤ
-        ========================================================= */
 
         .profile-modal {
             position: fixed;
@@ -435,9 +415,7 @@
             margin-bottom: 15px;
         }
 
-        .profile-input:focus {
-            border-color: #0068FF;
-        }
+        .profile-input:focus { border-color: #0068FF; }
 
         .profile-buttons {
             display: flex;
@@ -445,9 +423,7 @@
             margin-top: 5px;
         }
 
-        .profile-save-btn,
-        .profile-close-btn,
-        .profile-logout-btn {
+        .profile-save-btn, .profile-close-btn, .profile-logout-btn {
             height: 48px;
             border: none;
             border-radius: 12px;
@@ -456,28 +432,13 @@
             cursor: pointer;
         }
 
-        .profile-save-btn,
-        .profile-close-btn {
-            flex: 1;
-        }
+        .profile-save-btn, .profile-close-btn { flex: 1; }
 
-        .profile-save-btn {
-            background: #0068FF;
-            color: white;
-        }
+        .profile-save-btn { background: #0068FF; color: white; }
+        .profile-save-btn:hover { background: #0052CC; }
 
-        .profile-save-btn:hover {
-            background: #0052CC;
-        }
-
-        .profile-close-btn {
-            background: #E2E8F0;
-            color: #334155;
-        }
-
-        .profile-close-btn:hover {
-            background: #CBD5E1;
-        }
+        .profile-close-btn { background: #E2E8F0; color: #334155; }
+        .profile-close-btn:hover { background: #CBD5E1; }
 
         .profile-logout-btn {
             width: 100%;
@@ -507,273 +468,84 @@
     </style>
 </head>
 
-
 <body>
 
-
-<!-- =========================================================
-     MÀN HÌNH ĐĂNG NHẬP
-========================================================= -->
-
+<!-- ĐĂNG NHẬP -->
 <div id="login-screen" class="login-screen">
-
     <div class="login-box">
-
-        <div class="login-icon">
-            <i class="fa-solid fa-shield-halved"></i>
-        </div>
-
+        <div class="login-icon"><i class="fa-solid fa-shield-halved"></i></div>
         <h1>SafeAI</h1>
-
-        <p class="login-subtitle">
-            Trợ lý an toàn AI
-        </p>
-
-        <p class="login-desc">
-            Bảo vệ Cụ trước các tin nhắn lừa đảo
-        </p>
-
-        <input type="tel"
-               id="login-phone"
-               placeholder="📱 Số điện thoại"
-               maxlength="15">
-
-        <input type="password"
-               id="login-password"
-               placeholder="🔐 Mật khẩu">
-
-        <button class="login-btn" onclick="loginUser()">
-            <i class="fa-solid fa-right-to-bracket"></i>
-            ĐĂNG NHẬP
-        </button>
-
+        <p class="login-subtitle">Trợ lý an toàn AI</p>
+        <p class="login-desc">Bảo vệ Cụ trước các tin nhắn lừa đảo</p>
+        <input type="tel" id="login-phone" placeholder="📱 Số điện thoại" maxlength="15">
+        <input type="password" id="login-password" placeholder="🔐 Mật khẩu">
+        <button class="login-btn" onclick="loginUser()"><i class="fa-solid fa-right-to-bracket"></i> ĐĂNG NHẬP</button>
         <div id="login-message"></div>
-
     </div>
-
 </div>
 
-<!-- =========================================================
-     HỘP HỒ SƠ CỦA CỤ
-========================================================= -->
-
+<!-- HỒ SƠ -->
 <div id="profile-modal" class="profile-modal">
-
     <div class="profile-box">
-
-        <div class="profile-title">
-            <i class="fa-solid fa-user-circle"></i>
-            <span>Hồ sơ của Cụ</span>
-        </div>
-
-        <div class="profile-desc">
-            Hai số điện thoại này sẽ được dùng khi Cụ cần liên hệ
-            người thân trong trường hợp khẩn cấp.
-        </div>
-
-        <div class="profile-account">
-            📱 Tài khoản của Cụ:
-            <strong id="profile-account-phone">---</strong>
-        </div>
-
-        <label class="profile-label">
-            📞 Người thân 1
-        </label>
-
-        <input
-            type="tel"
-            id="profile-phone1"
-            class="profile-input"
-            placeholder="Nhập số điện thoại người thân 1"
-            maxlength="15"
-        >
-
-        <label class="profile-label">
-            📞 Người thân 2
-        </label>
-
-        <input
-            type="tel"
-            id="profile-phone2"
-            class="profile-input"
-            placeholder="Nhập số điện thoại người thân 2"
-            maxlength="15"
-        >
-
+        <div class="profile-title"><i class="fa-solid fa-user-circle"></i><span>Hồ sơ của Cụ</span></div>
+        <div class="profile-desc">Số điện thoại này sẽ dùng để liên hệ người thân khi khẩn cấp.</div>
+        <div class="profile-account">📱 Tài khoản: <strong id="profile-account-phone">---</strong></div>
+        <label class="profile-label">📞 Người thân 1</label>
+        <input type="tel" id="profile-phone1" class="profile-input" placeholder="SĐT người thân 1" maxlength="15">
+        <label class="profile-label">📞 Người thân 2</label>
+        <input type="tel" id="profile-phone2" class="profile-input" placeholder="SĐT người thân 2" maxlength="15">
         <div class="profile-buttons">
-            <button
-                class="profile-close-btn"
-                onclick="closeProfile()">
-                ĐÓNG
-            </button>
-
-            <button
-                class="profile-save-btn"
-                onclick="saveProfile()">
-                <i class="fa-solid fa-floppy-disk"></i>
-                LƯU
-            </button>
+            <button class="profile-close-btn" onclick="closeProfile()">ĐÓNG</button>
+            <button class="profile-save-btn" onclick="saveProfile()"><i class="fa-solid fa-floppy-disk"></i> LƯU</button>
         </div>
-
-        <button
-            class="profile-logout-btn"
-            onclick="logoutUser()">
-            <i class="fa-solid fa-right-from-bracket"></i>
-            ĐĂNG XUẤT
-        </button>
-
+        <button class="profile-logout-btn" onclick="logoutUser()"><i class="fa-solid fa-right-from-bracket"></i> ĐĂNG XUẤT</button>
     </div>
-
 </div>
 
-<!-- =========================================================
-     GIAO DIỆN SAFEAI
-========================================================= -->
-
+<!-- MÀN HÌNH CHÍNH -->
 <div class="mobile-frame">
-
-    <!-- Header -->
     <div class="zalo-header">
-
-        <button class="sos-btn" onclick="openProfile()">
-            <i class="fa-solid fa-user"></i>
-            Hồ sơ
-        </button>
-
-        <div class="header-title">
-            <i class="fa-solid fa-shield-halved"
-               style="font-size: 22px;"></i>
-
-            <span>Trợ Lý An Toàn AI</span>
-        </div>
-
-        <button class="sos-btn" onclick="triggerSOS()">
-            <i class="fa-solid fa-phone-volume"></i>
-            SOS
-        </button>
-
+        <button class="sos-btn" onclick="openProfile()"><i class="fa-solid fa-user"></i> Hồ sơ</button>
+        <div class="header-title"><i class="fa-solid fa-shield-halved" style="font-size: 22px;"></i><span>Trợ Lý An Toàn AI</span></div>
+        <button class="sos-btn" onclick="triggerSOS()"><i class="fa-solid fa-phone-volume"></i> SOS</button>
     </div>
 
-
-    <!-- Security Banner -->
     <div class="security-banner">
-
-        <span class="status-dot"></span>
-
-        Hệ thống đang bảo vệ 24/7 trước các kịch bản lừa đảo
-
+        <span class="status-dot"></span> Hệ thống đang bảo vệ 24/7
     </div>
 
-
-    <!-- Chat Body -->
     <div class="chat-body" id="chatBody">
-
         <div class="message bot-msg">
-
-            <div style="font-weight: bold;
-                        color: #0068FF;
-                        margin-bottom: 4px;">
-
-                <i class="fa-solid fa-robot"></i>
-                Trợ lý AI chào Cụ!
-
+            <div style="font-weight: bold; color: #0068FF; margin-bottom: 4px;">
+                <i class="fa-solid fa-robot"></i> Trợ lý AI chào Cụ!
             </div>
-
-            Cụ nói hoặc dán tin nhắn nghi ngờ vào ô bên dưới,
-            cháu sẽ kiểm tra giúp Cụ ngay nhé!
-
+            Cụ nói hoặc dán tin nhắn nghi ngờ vào ô bên dưới, cháu sẽ kiểm tra giúp Cụ ngay nhé!
         </div>
-
     </div>
 
-
-    <!-- Input Area -->
     <div class="input-area">
-
         <div class="input-wrapper">
-
-            <textarea id="userInput"
-                      placeholder="Nhập hoặc nhấn mic để nói..."></textarea>
-
-            <!-- Input chọn ảnh (ẩn) -->
-            <input type="file"
-                   id="imageInput"
-                   accept="image/*"
-                   style="display: none;"
-                   onchange="handleImageUpload(event)">
-
-            <!-- Nút chọn ảnh -->
-            <button class="mic-btn"
-                    id="imgBtn"
-                    style="right: 52px;"
-                    onclick="document.getElementById('imageInput').click()"
-                    title="Tải ảnh màn hình">
-
-                <i class="fa-solid fa-image"></i>
-
-            </button>
-
-            <!-- Nút microphone -->
-            <button class="mic-btn"
-                    id="micBtn"
-                    onclick="toggleVoiceInput()"
-                    title="Bấm để nói">
-
-                <i class="fa-solid fa-microphone"></i>
-
-            </button>
-
+            <textarea id="userInput" placeholder="Nhập hoặc nhấn mic để nói..."></textarea>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+            <button class="mic-btn" id="imgBtn" style="right: 52px;" onclick="document.getElementById('imageInput').click()"><i class="fa-solid fa-image"></i></button>
+            <button class="mic-btn" id="micBtn" onclick="toggleVoiceInput()"><i class="fa-solid fa-microphone"></i></button>
         </div>
-
-
-        <button class="send-btn" onclick="sendMessage()">
-
-            <i class="fa-solid fa-magnifying-glass"></i>
-
-            KIỂM TRA NGAY
-
-        </button>
-
+        <button class="send-btn" onclick="sendMessage()"><i class="fa-solid fa-magnifying-glass"></i> KIỂM TRA NGAY</button>
     </div>
-
 </div>
-
-
-<!-- =========================================================
-     JAVASCRIPT
-========================================================= -->
 
 <script>
-
-    /* =========================================================
-       1. ĐĂNG NHẬP & ĐĂNG XUẤT
-    ========================================================= */
-
+    /* 1. ĐĂNG NHẬP & HỒ SƠ */
     function loginUser() {
-        const phoneInput = document.getElementById("login-phone");
-        const passwordInput = document.getElementById("login-password");
-        const message = document.getElementById("login-message");
-
-        const phone = phoneInput.value.trim();
-        const password = passwordInput.value.trim();
-
-        if (!phone) {
-            message.textContent = "⚠️ Cụ vui lòng nhập số điện thoại.";
-            phoneInput.focus();
+        const phone = document.getElementById("login-phone").value.trim();
+        const password = document.getElementById("login-password").value.trim();
+        if (!phone || !password) {
+            document.getElementById("login-message").textContent = "⚠️ Vui lòng nhập đầy đủ thông tin.";
             return;
         }
-
-        if (!password) {
-            message.textContent = "⚠️ Cụ vui lòng nhập mật khẩu.";
-            passwordInput.focus();
-            return;
-        }
-
         localStorage.setItem("user_phone", phone);
         localStorage.setItem("safeai_logged_in", "true");
-
         document.getElementById("login-screen").style.display = "none";
-        message.textContent = "";
     }
 
     function logoutUser() {
@@ -782,97 +554,53 @@
         document.getElementById("login-screen").style.display = "flex";
     }
 
-
-    /* =========================================================
-       2. TỰ ĐỘNG KIỂM TRA ĐĂNG NHẬP KHI MỞ APP
-    ========================================================= */
-
     window.addEventListener("DOMContentLoaded", function () {
-        const loggedIn = localStorage.getItem("safeai_logged_in");
-        const userPhone = localStorage.getItem("user_phone");
-
-        if (loggedIn === "true" && userPhone) {
+        if (localStorage.getItem("safeai_logged_in") === "true") {
             document.getElementById("login-screen").style.display = "none";
-        } else {
-            document.getElementById("login-screen").style.display = "flex";
+        }
+        // Khởi tạo trước danh sách giọng đọc của trình duyệt di động
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = function() {
+                window.speechSynthesis.getVoices();
+            };
         }
     });
 
-
-    /* =========================================================
-       3. NHẬN DIỆN GIỌNG NÓI
-    ========================================================= */
-
+    /* 2. NHẬN DIỆN GIỌNG NÓI */
     let recognition;
     let isRecording = false;
-
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
         recognition = new SpeechRecognition();
         recognition.lang = 'vi-VN';
-        recognition.continuous = false;
-        recognition.interimResults = false;
-
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            document.getElementById('userInput').value = transcript;
+        recognition.onresult = (e) => {
+            document.getElementById('userInput').value = e.results[0][0].transcript;
             stopRecording();
         };
-
-        recognition.onerror = (event) => {
-            console.error('Lỗi nhận diện giọng nói:', event.error);
-            stopRecording();
-        };
-
-        recognition.onend = () => {
-            stopRecording();
-        };
+        recognition.onend = stopRecording;
+        recognition.onerror = stopRecording;
     }
 
     function toggleVoiceInput() {
-        if (!recognition) {
-            alert("Trình duyệt không hỗ trợ nhận diện giọng nói. Cụ hãy sử dụng Chrome nhé!");
-            return;
-        }
-
-        if (isRecording) {
-            recognition.stop();
-            stopRecording();
-        } else {
+        if (!recognition) return alert("Trình duyệt không hỗ trợ nhận diện giọng nói. Cụ hãy mở bằng Google Chrome nhé!");
+        if (isRecording) { recognition.stop(); } 
+        else {
             recognition.start();
             isRecording = true;
-
-            const micBtn = document.getElementById('micBtn');
-            micBtn.classList.add('recording');
-            micBtn.innerHTML = '<i class="fa-solid fa-square"></i>';
+            document.getElementById('micBtn').classList.add('recording');
         }
     }
 
     function stopRecording() {
         isRecording = false;
-        const micBtn = document.getElementById('micBtn');
-        micBtn.classList.remove('recording');
-        micBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+        document.getElementById('micBtn').classList.remove('recording');
     }
 
-
-   /* =========================================================
-       4. ĐỌC TIẾNG VIỆT (TỐI ƯU CHO ĐIỆN THOẠI & GIỌNG NỮ CHẬM RÕ)
-    ========================================================= */
-
-    let currentAudio = null;
-
+    /* 3. ĐỌC TIẾNG VIỆT TỐI ƯU CHO ĐIỆN THOẠI (NỮ - CHẬM - RÕ) */
     function speakText(inputData) {
         let text = inputData;
+        try { text = decodeURIComponent(inputData); } catch (e) {}
 
-        try {
-            text = decodeURIComponent(inputData);
-        } catch (e) {
-            text = inputData;
-        }
-
-        // Làm sạch văn bản trước khi đọc
         const cleanText = text
             .replace(/<br\s*\/?>/gi, '. ')
             .replace(/<[^>]*>/g, '')
@@ -882,42 +610,29 @@
 
         if (!cleanText) return;
 
-        // Dừng âm thanh đang phát nếu có
-        if (currentAudio) {
-            currentAudio.pause();
-            currentAudio = null;
-        }
+        if ('speechSynthesis' in window) {
+            // Hủy lượt đọc cũ
+            window.speechSynthesis.cancel();
 
-        // CẮT NGẮN VĂN BẢN ĐỂ GỬI GOOGLE TTS (Tối đa 200 ký tự đầu để đọc ý chính)
-        const shortText = cleanText.substring(0, 200);
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = 'vi-VN';
+            utterance.rate = 0.8; // Đọc chậm rãi (0.8x)
+            utterance.pitch = 1.1; // Tông giọng cao hơn (giống giọng nữ)
 
-        // Sử dụng Google Translate TTS API (Giọng nữ chuẩn, hỗ trợ cực tốt trên Mobile)
-        const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(shortText)}&tl=vi&client=tw-ob`;
-
-        currentAudio = new Audio(ttsUrl);
-        currentAudio.playbackRate = 0.85; // Tốc độ đọc chậm rãi (0.85x) cho người cao tuổi
-
-        // Phát âm thanh
-        currentAudio.play().catch(error => {
-            console.warn("Trình duyệt chặn autoplay, tự động chuyển sang Web Speech API:", error);
-            
-            // Phương án dự phòng 2: Web Speech API chuẩn trình duyệt
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(cleanText);
-                utterance.lang = 'vi-VN';
-                utterance.rate = 0.8; // Đọc chậm
-                utterance.pitch = 1.1; // Chỉnh tông giọng nữ cao hơn
-                window.speechSynthesis.speak(utterance);
+            // Tìm giọng đọc tiếng Việt của thiết bị
+            const voices = window.speechSynthesis.getVoices();
+            const viVoice = voices.find(v => v.lang.includes('vi') || v.lang.includes('VI'));
+            if (viVoice) {
+                utterance.voice = viVoice;
             }
-        });
+
+            window.speechSynthesis.speak(utterance);
+        } else {
+            alert("Thiết bị này không hỗ trợ tính năng đọc giọng nói.");
+        }
     }
 
-
-    /* =========================================================
-       5. GỬI TIN NHẮN & ĐỌC PHẢN HỒI
-    ========================================================= */
-
+    /* 4. GỬI TIN NHẮN */
     async function sendMessage() {
         const input = document.getElementById('userInput');
         const chatBody = document.getElementById('chatBody');
@@ -925,10 +640,10 @@
 
         if (!text) return;
 
-        // KÍCH HOẠT QUYỀN ÂM THANH TRÊN ĐIỆN THOẠI (UNLOCK MOBILE AUDIO)
-        // Việc tạo và play/pause 1 audio rỗng ngay khi click giúp điện thoại cấp quyền phát audio tự động
-        const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAA=');
-        silentAudio.play().catch(() => {});
+        // Kích hoạt mồi âm thanh để vượt qua chặn Autoplay của Mobile
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.resume();
+        }
 
         const userDiv = document.createElement('div');
         userDiv.className = 'message user-msg';
@@ -947,9 +662,7 @@
         try {
             const response = await fetch('/api/check-scam', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: text })
             });
 
@@ -959,163 +672,70 @@
             let alertLevel = data.alert_level || "green";
 
             let alertBox = "";
-
             if (alertLevel === "red") {
                 alertBox = `
                     <div class="alert-card alert-danger">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <i class="fa-solid fa-triangle-exclamation" style="font-size:20px;"></i>
-                            <b>CẢNH BÁO ĐỎ: NGUY HIỂM!</b>
-                        </div>
+                        <div><i class="fa-solid fa-triangle-exclamation"></i> <b>CẢNH BÁO ĐỎ: NGUY HIỂM!</b></div>
                         <div>${replyFormatted}</div>
-                        <button class="speak-btn" onclick="speakText('${encodedReply}')">
-                            <i class="fa-solid fa-volume-high"></i> Nghe lại lời khuyên
-                        </button>
-                    </div>
-                `;
+                        <button class="speak-btn" onclick="speakText('${encodedReply}')"><i class="fa-solid fa-volume-high"></i> Nghe lại lời khuyên</button>
+                    </div>`;
             } else if (alertLevel === "orange") {
                 alertBox = `
                     <div class="alert-card alert-warning">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <i class="fa-solid fa-triangle-exclamation" style="font-size:20px;"></i>
-                            <b>CẢNH BÁO CAM: ĐÁNG NGỜ!</b>
-                        </div>
+                        <div><i class="fa-solid fa-triangle-exclamation"></i> <b>CẢNH BÁO CAM: ĐÁNG NGỜ!</b></div>
                         <div>${replyFormatted}</div>
-                        <button class="speak-btn" onclick="speakText('${encodedReply}')">
-                            <i class="fa-solid fa-volume-high"></i> Nghe lại lời khuyên
-                        </button>
-                    </div>
-                `;
+                        <button class="speak-btn" onclick="speakText('${encodedReply}')"><i class="fa-solid fa-volume-high"></i> Nghe lại lời khuyên</button>
+                    </div>`;
             } else {
                 alertBox = `
                     <div class="alert-card alert-safe">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <i class="fa-solid fa-circle-check" style="font-size:20px;"></i>
-                            <b>CẢNH BÁO XANH: AN TOÀN!</b>
-                        </div>
+                        <div><i class="fa-solid fa-circle-check"></i> <b>CẢNH BÁO XANH: AN TOÀN!</b></div>
                         <div>${replyFormatted}</div>
-                        <button class="speak-btn" onclick="speakText('${encodedReply}')">
-                            <i class="fa-solid fa-volume-high"></i> Nghe lại lời khuyên
-                        </button>
-                    </div>
-                `;
+                        <button class="speak-btn" onclick="speakText('${encodedReply}')"><i class="fa-solid fa-volume-high"></i> Nghe lại lời khuyên</button>
+                    </div>`;
             }
 
             loadingDiv.innerHTML = alertBox;
-            
-            // Đọc kết quả tự động bằng giọng nữ Google chậm rãi
             speakText(encodedReply);
 
         } catch (error) {
-            console.error("Lỗi kết nối Server:", error);
             const errorMsg = "Chưa kết nối Server. Cụ tuyệt đối KHÔNG chuyển tiền nhé!";
-            let encodedError = encodeURIComponent(errorMsg);
-
-            loadingDiv.innerHTML = `
-                <div class="alert-card alert-danger">
-                    <i class="fa-solid fa-wifi"></i> ${errorMsg}
-                </div>
-            `;
-            speakText(encodedError);
+            loadingDiv.innerHTML = `<div class="alert-card alert-danger"><i class="fa-solid fa-wifi"></i> ${errorMsg}</div>`;
+            speakText(encodeURIComponent(errorMsg));
         }
 
         chatBody.scrollTop = chatBody.scrollHeight;
     }
 
-
-    /* =========================================================
-       6. BÁO ĐỘNG SOS
-    ========================================================= */
-
+    /* 5. SOS & HỒ SƠ */
     function triggerSOS() {
-        const accountPhone = localStorage.getItem("user_phone");
-
-        if (!accountPhone) {
-            alert("⚠️ Cụ chưa đăng nhập tài khoản.");
-            return;
-        }
-
-        const phone1 = localStorage.getItem("sos_phone1_" + accountPhone);
-        const phone2 = localStorage.getItem("sos_phone2_" + accountPhone);
-
-        if (!phone1 && !phone2) {
-            alert("⚠️ Cụ chưa cài số người thân SOS.");
-            return;
-        }
-
-        if (phone1 && phone2) {
-            const choice = prompt(
-                "🚨 LIÊN HỆ KHẨN CẤP\n\n" +
-                "Nhập 1 → Người thân 1\n" +
-                "Nhập 2 → Người thân 2"
-            );
-
-            if (choice === "1") {
-                window.location.href = "https://zalo.me/" + phone1;
-            } else if (choice === "2") {
-                window.location.href = "https://zalo.me/" + phone2;
-            } else {
-                alert("⚠️ Cụ chưa chọn người thân.");
-            }
-        } else {
-            const phone = phone1 || phone2;
-            if (confirm("🚨 Mở Zalo để liên hệ người thân?")) {
-                window.location.href = "https://zalo.me/" + phone;
-            }
-        }
+        const phone = localStorage.getItem("sos_phone1_" + localStorage.getItem("user_phone"));
+        if (phone && confirm("🚨 Mở Zalo liên hệ người thân?")) window.location.href = "https://zalo.me/" + phone;
+        else alert("⚠️ Cụ chưa lưu số người thân trong Hồ sơ!");
     }
 
-
-    /* =========================================================
-       7. XỬ LÝ TẢI ẢNH MÀN HÌNH
-    ========================================================= */
-
-    function handleImageUpload(event) {
-        const file = event.target.files[0];
-        if (file) {
-            const input = document.getElementById('userInput');
-            input.value = `[Ảnh đã chọn: ${file.name}] - Cháu hãy kiểm tra ảnh này giúp Cụ!`;
-        }
+    function handleImageUpload(e) {
+        if (e.target.files[0]) document.getElementById('userInput').value = `[Ảnh đã chọn: ${e.target.files[0].name}] - Cháu kiểm tra giúp Cụ!`;
     }
-
-
-    /* =========================================================
-       8. HỒ SƠ CỦA CỤ
-    ========================================================= */
 
     function openProfile() {
-        const accountPhone = localStorage.getItem("user_phone");
-
-        if (!accountPhone) {
-            alert("⚠️ Cụ chưa đăng nhập tài khoản.");
-            return;
-        }
-
-        document.getElementById("profile-account-phone").innerText = accountPhone;
-        document.getElementById("profile-phone1").value = localStorage.getItem("sos_phone1_" + accountPhone) || "";
-        document.getElementById("profile-phone2").value = localStorage.getItem("sos_phone2_" + accountPhone) || "";
-
+        const p = localStorage.getItem("user_phone");
+        if (!p) return alert("⚠️ Cụ chưa đăng nhập.");
+        document.getElementById("profile-account-phone").innerText = p;
+        document.getElementById("profile-phone1").value = localStorage.getItem("sos_phone1_" + p) || "";
+        document.getElementById("profile-phone2").value = localStorage.getItem("sos_phone2_" + p) || "";
         document.getElementById("profile-modal").style.display = "flex";
     }
 
-    function closeProfile() {
-        document.getElementById("profile-modal").style.display = "none";
-    }
+    function closeProfile() { document.getElementById("profile-modal").style.display = "none"; }
 
     function saveProfile() {
-        const accountPhone = localStorage.getItem("user_phone");
-        if (!accountPhone) return;
-
-        const p1 = document.getElementById("profile-phone1").value.trim();
-        const p2 = document.getElementById("profile-phone2").value.trim();
-
-        localStorage.setItem("sos_phone1_" + accountPhone, p1);
-        localStorage.setItem("sos_phone2_" + accountPhone, p2);
-
-        alert("✅ Đã lưu số điện thoại người thân!");
+        const p = localStorage.getItem("user_phone");
+        localStorage.setItem("sos_phone1_" + p, document.getElementById("profile-phone1").value.trim());
+        localStorage.setItem("sos_phone2_" + p, document.getElementById("profile-phone2").value.trim());
+        alert("✅ Đã lưu thành công!");
         closeProfile();
     }
-
 </script>
 
 </body>
