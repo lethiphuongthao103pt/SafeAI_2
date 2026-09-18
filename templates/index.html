@@ -857,9 +857,11 @@
     }
 
 
-    /* =========================================================
-       4. ĐỌC TIẾNG VIỆT
+   /* =========================================================
+       4. ĐỌC TIẾNG VIỆT (TỐI ƯU CHO ĐIỆN THOẠI & GIỌNG NỮ CHẬM RÕ)
     ========================================================= */
+
+    let currentAudio = null;
 
     function speakText(inputData) {
         let text = inputData;
@@ -870,6 +872,7 @@
             text = inputData;
         }
 
+        // Làm sạch văn bản trước khi đọc
         const cleanText = text
             .replace(/<br\s*\/?>/gi, '. ')
             .replace(/<[^>]*>/g, '')
@@ -879,19 +882,35 @@
 
         if (!cleanText) return;
 
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.lang = 'vi-VN';
-            utterance.rate = 0.85;
-            utterance.volume = 1;
-            utterance.pitch = 1;
-
-            window.speechSynthesis.speak(utterance);
-        } else {
-            alert("⚠️ Trình duyệt không hỗ trợ đọc văn bản.");
+        // Dừng âm thanh đang phát nếu có
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio = null;
         }
+
+        // CẮT NGẮN VĂN BẢN ĐỂ GỬI GOOGLE TTS (Tối đa 200 ký tự đầu để đọc ý chính)
+        const shortText = cleanText.substring(0, 200);
+
+        // Sử dụng Google Translate TTS API (Giọng nữ chuẩn, hỗ trợ cực tốt trên Mobile)
+        const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(shortText)}&tl=vi&client=tw-ob`;
+
+        currentAudio = new Audio(ttsUrl);
+        currentAudio.playbackRate = 0.85; // Tốc độ đọc chậm rãi (0.85x) cho người cao tuổi
+
+        // Phát âm thanh
+        currentAudio.play().catch(error => {
+            console.warn("Trình duyệt chặn autoplay, tự động chuyển sang Web Speech API:", error);
+            
+            // Phương án dự phòng 2: Web Speech API chuẩn trình duyệt
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                utterance.lang = 'vi-VN';
+                utterance.rate = 0.8; // Đọc chậm
+                utterance.pitch = 1.1; // Chỉnh tông giọng nữ cao hơn
+                window.speechSynthesis.speak(utterance);
+            }
+        });
     }
 
 
@@ -906,9 +925,10 @@
 
         if (!text) return;
 
-        if (window.responsiveVoice) {
-            window.responsiveVoice.speak("", "Vietnamese Female");
-        }
+        // KÍCH HOẠT QUYỀN ÂM THANH TRÊN ĐIỆN THOẠI (UNLOCK MOBILE AUDIO)
+        // Việc tạo và play/pause 1 audio rỗng ngay khi click giúp điện thoại cấp quyền phát audio tự động
+        const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAA=');
+        silentAudio.play().catch(() => {});
 
         const userDiv = document.createElement('div');
         userDiv.className = 'message user-msg';
@@ -982,6 +1002,8 @@
             }
 
             loadingDiv.innerHTML = alertBox;
+            
+            // Đọc kết quả tự động bằng giọng nữ Google chậm rãi
             speakText(encodedReply);
 
         } catch (error) {
