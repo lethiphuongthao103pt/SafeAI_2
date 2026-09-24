@@ -6,6 +6,11 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 from groq import Groq
+import google.generativeai as genai
+
+# Khai báo API Key của Gemini (lấy từ file .env hoặc dán trực tiếp key)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "NHẬP_GEMINI_API_KEY_CỦA_BẠN_VÀO_ĐÂY")
+genai.configure(api_key=GEMINI_API_KEY)
 
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path=env_path, override=True)
@@ -399,21 +404,102 @@ def check_scam():
             'alert_level': alert_level,
             'alert_color': alert_color
         })
-        return jsonify({
-            'reply': reply_text,
-            'alert_level': alert_level,
-            'alert_color': alert_color
-        })
     except Exception as e:
         print(f"Lỗi Exception Detail: {e}")
         return jsonify({'reply': f'🚨 1. ĐÁNH GIÁ MỨC ĐỘ RỦI RO: 50% - NGHỜ VẤN\n\nLỗi kết nối API: {str(e)[:100]}'})
 
 @app.route('/api/check-scam-image', methods=['POST'])
 def check_scam_image():
-    return jsonify({
-        'reply': 'Chức năng kiểm tra hình ảnh đang được thiết lập.',
-        'alert_level': 'green',
-        'alert_color': '#2e7d32'
-    })
+    try:
+        data = request.get_json()
+        image_data = data.get('image')
+
+        if not image_data:
+            return jsonify({'reply': 'Không nhận được dữ liệu ảnh.', 'alert_level': 'orange'})
+
+        # 1. Tách chuỗi Base64 để lấy byte ảnh
+        if "," in image_data:
+            header, encoded = image_data.split(",", 1)
+        else:
+            encoded = image_data
+
+        image_bytes = base64.b64decode(encoded)
+
+        # 2. Dùng Gemini BƯỚC ĐỌC CHỮ (OCR) duy nhất từ ảnh
+        ocr_model = genai.GenerativeModel('gemini-1.5-flash')
+        ocr_prompt = "Hãy trích xuất và đọc chính xác toàn bộ văn bản/chữ có trong bức ảnh này. Không cần phân tích hay giải thích gì thêm."
+        
+        ocr_response = ocr_model.generate_content([
+            ocr_prompt,
+            {'mime_type': 'image/jpeg', 'data': image_bytes}
+        ])
+
+        extracted_text = ocr_response.text.strip()
+
+        # Nếu ảnh không có chữ
+        if not extracted_text:
+            return jsonify({
+                'reply': 'Cháu không tìm thấy chữ nào trong bức ảnh này. Cụ hãy kiểm tra lại ảnh nhé!',
+                'alert_level': 'orange'
+            })
+
+        # 3. TÁI SỬ DỤNG LẠI PROMPT VÀ MODEL GROQ (Y hệt như khi gõ văn bản / mic)
+        if not client:
+            return jsonify({'reply': 'Chưa tìm thấy GROQ_API_KEY trong môi trường!'})
+
+        selected_model = "openai/gpt-oss-120b"
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": extracted_text}
+            ],
+            model=selected_model,
+            temperature=0.3
+        )
+
+        reply_text = chat_completion.choices[0].message.content
+
+        # 4. Xử lý LEVEL (RED/ORANGE/GREEN) chuẩn theo Prompt hệ thống của bạn
+        alert_level = "green"
+        alert_color = "#2e7d32"
+
+        match = re.search(
+            r'^\s*LEVEL:\s*(RED|ORANGE|GREEN)\s*$',
+            reply_text,
+            re.IGNORECASE | re.MULTILINE
+        )
+
+        if match:
+            level = match.group(1).upper()
+            if level == "RED":
+                alert_level = "red"
+                alert_color = "#e53935"
+            elif level == "ORANGE":
+                alert_level = "orange"
+                alert_color = "#f57c00"
+            elif level == "GREEN":
+                alert_level = "green"
+                alert_color = "#2e7d32"
+
+        reply_text = re.sub(
+            r'^\s*LEVEL:\s*(RED|ORANGE|GREEN)\s*\n?',
+            '',
+            reply_text,
+            count=1,
+            flags=re.IGNORECASE
+        ).strip()
+
+        return jsonify({
+            'reply': reply_text,
+            'alert_level': alert_level,
+            'alert_color': alert_color
+        })
+
+    except Exception as e:
+        print("Lỗi xử lý ảnh:", e)
+        return jsonify({
+            'reply': 'Cháu không đọc được nội dung ảnh này. Cụ tuyệt đối KHÔNG làm theo hướng dẫn hoặc chuyển tiền nhé!',
+            'alert_level': 'orange'
+        }), 500
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
