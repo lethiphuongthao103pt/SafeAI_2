@@ -1,33 +1,3 @@
-Không chọn mục nào
-
-Chuyển đến nội dung
-Sử dụng Thư Trường THPT Chuyên Trần Hưng Đạo Bình Thuận bằng trình đọc màn hình
-
-2 trong tổng số 5.041
-AISafe
-Hộp thư đến
-
-Thao Le Thi Phuong
-Tệp đính kèm
-22:49 1 thg 9, 2026
- 
-2
-
-Thao Le Thi Phuong
-Tệp đính kèm
-09:54 13 thg 9, 2026 (11 ngày trước)
-Thêm tính năng SOS (2 sđt) Vào Thứ 7, 12 thg 9, 2026 vào lúc 23:42 Thao Le Thi Phuong <thao.lethiphuong@thd.edu.vn> đã viết:
-
-Thao Le Thi Phuong <thao.lethiphuong@thd.edu.vn>
-Tệp đính kèm
-10:15 23 thg 9, 2026 (23 giờ trước)
-đến tôi
-
-đã hoàn chỉnh trên API
-
-Vào CN, 13 thg 9, 2026 vào lúc 09:54 Thao Le Thi Phuong <thao.lethiphuong@thd.edu.vn> đã viết:
- 3 tệp đính kèm
-  •  Do Gmail quét
 ﻿﻿import os
 import base64
 import re
@@ -447,5 +417,3 @@ def check_scam_image():
     })
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
-app.py
-Hiển thị index.html.
