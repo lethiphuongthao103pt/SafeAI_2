@@ -726,13 +726,10 @@
         </div>
 
 
-        <button class="send-btn" onclick="sendMessage()">
-
-            <i class="fa-solid fa-magnifying-glass"></i>
-
-            KIỂM TRA NGAY
-
-        </button>
+        <!-- Nút kiểm tra kích hoạt Mic trực tiếp -->
+            <button class="send-btn" onclick="startVoiceRecognitionAndCheck()">
+            <i class="fa-solid fa-magnifying-glass"></i>KIỂM TRA NGAY
+            </button>
 
     </div>
 
@@ -1112,6 +1109,129 @@
         alert("✅ Đã lưu số điện thoại người thân!");
         closeProfile();
     }
+    /* =========================================================
+   XỬ LÝ MICRO: HIỆN CHỮ THEO GIỌNG NÓI & BẮT ĐẦU KHI NHẤN KIỂM TRA
+========================================================= */
+
+let recognition = null;
+let isRecording = false;
+
+// Khởi tạo SpeechRecognition
+if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    
+    recognition.lang = 'vi-VN';
+    recognition.continuous = false;    // Tự dừng khi người dùng ngắt câu
+    recognition.interimResults = true; // BẬT HIỆU ỨNG: Nhận dạng và hiển thị chữ từng từ theo thời gian thực
+
+    // Sự kiện xử lý khi nhận diện được giọng nói
+    recognition.onresult = function (event) {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
+            } else {
+                interimTranscript += event.results[i][0].transcript;
+            }
+        }
+
+        const userInput = document.getElementById('userInput');
+
+        // HIỆU ỨNG: Cập nhật chữ liên tục vào ô textarea khi người dùng đang nói
+        if (interimTranscript !== '') {
+            userInput.value = interimTranscript;
+        }
+
+        // Khi người dùng dừng nói và có kết quả chính thức cuối cùng
+        if (finalTranscript !== '') {
+            userInput.value = finalTranscript.trim();
+            stopRecordingState();
+            
+            // Tự động gửi nội dung vừa thu âm đi kiểm tra AI
+            triggerAutoSend();
+        }
+    };
+
+    recognition.onerror = function (event) {
+        console.error("Lỗi micro:", event.error);
+        stopRecordingState();
+
+        if (event.error === 'not-allowed') {
+            alert("⚠️ Cụ vui lòng cấp quyền cho phép ứng dụng sử dụng Micro.");
+        } else if (event.error === 'no-speech') {
+            alert("⚠️ Chưa nghe thấy tiếng cụ nói. Cụ thử nhấn nút và nói lại nhé!");
+        }
+    };
+
+    recognition.onend = function () {
+        stopRecordingState();
+    };
+}
+
+// Hàm khởi chạy Mic khi nhấn nút Kiểm Tra
+function startVoiceRecognitionAndCheck() {
+    if (!recognition) {
+        alert("⚠️ Trình duyệt chưa hỗ trợ thu âm trực tiếp. Cụ có thể gõ chữ vào ô để kiểm tra nhé!");
+        return;
+    }
+
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.querySelector('.send-btn');
+
+    if (isRecording) {
+        // Nếu đang thu âm mà bấm lại nút thì dừng Mic
+        recognition.stop();
+        stopRecordingState();
+        return;
+    }
+
+    try {
+        // Làm sạch ô văn bản trước khi nói
+        userInput.value = '';
+        userInput.placeholder = '🎙️ Đang nghe cụ nói... Cụ hãy đọc nội dung cần kiểm tra nhé!';
+        
+        isRecording = true;
+        
+        // Đổi hiệu ứng nút sang trạng thái đang thu âm
+        if (sendBtn) {
+            sendBtn.style.backgroundColor = '#DC2626';
+            sendBtn.innerHTML = '<i class="fa-solid fa-microphone-lines fa-bounce"></i> ĐANG NGHE CỤ NÓI...';
+        }
+
+        recognition.start();
+
+    } catch (err) {
+        console.error(err);
+        stopRecordingState();
+    }
+}
+
+// Trả nút và ô nhập về trạng thái ban đầu
+function stopRecordingState() {
+    isRecording = false;
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.querySelector('.send-btn');
+
+    if (userInput) {
+        userInput.placeholder = 'Nhập hoặc nhấn mic để nói...';
+    }
+
+    if (sendBtn) {
+        sendBtn.style.backgroundColor = 'var(--zalo-blue)';
+        sendBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> KIỂM TRA NGAY';
+    }
+}
+
+// Hàm hỗ trợ tự động gửi sau khi nói xong
+function triggerAutoSend() {
+    const userInput = document.getElementById('userInput');
+    if (userInput && userInput.value.trim() !== '') {
+        sendMessage();
+    }
+}
 
 </script>
 
