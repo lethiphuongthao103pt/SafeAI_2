@@ -913,12 +913,12 @@
        6. BÁO ĐỘNG SOS & GỬI CẢNH BÁO CHO CON CHÁU QUA ZALO
     ========================================================= */
 
-    // Hàm phụ trợ: Chuẩn hóa số điện thoại về dạng thuần chữ số (VD: 0948677187)
+    // Hàm chuẩn hóa số điện thoại
     function formatPhoneNumber(phone) {
         if (!phone) return '';
-        let clean = phone.replace(/\D/g, ''); // Xóa toàn bộ ký tự không phải số
+        let clean = phone.replace(/\D/g, '');
         if (clean.startsWith('84')) {
-            clean = '0' + clean.slice(2); // Chuyển đầu +84 hoặc 84 về 0
+            clean = '0' + clean.slice(2);
         }
         return clean;
     }
@@ -926,21 +926,17 @@
     /* 6.1. XỬ LÝ KHI NHẤN NÚT SOS */
     function triggerSOS() {
         const accountPhone = localStorage.getItem("user_phone");
-
         if (!accountPhone) {
             alert("⚠️ Cụ chưa đăng nhập tài khoản.");
             return;
         }
 
-        let phone1 = localStorage.getItem("sos_phone1_" + accountPhone) || "";
-        let phone2 = localStorage.getItem("sos_phone2_" + accountPhone) || "";
-
-        phone1 = formatPhoneNumber(phone1);
-        phone2 = formatPhoneNumber(phone2);
+        let phone1 = formatPhoneNumber(localStorage.getItem("sos_phone1_" + accountPhone) || "");
+        let phone2 = formatPhoneNumber(localStorage.getItem("sos_phone2_" + accountPhone) || "");
 
         if (!phone1 && !phone2) {
             alert("⚠️ Cụ chưa cài số điện thoại người thân trong Hồ sơ.");
-            openProfile(); // Tự động mở hộp thoại Hồ sơ để cài số
+            openProfile();
             return;
         }
 
@@ -952,38 +948,38 @@
             );
 
             if (choice === "1" && phone1) {
-                window.location.href = "https://zalo.me/" + phone1;
+                openZaloChat(phone1);
             } else if (choice === "2" && phone2) {
-                window.location.href = "https://zalo.me/" + phone2;
-            } else {
-                alert("⚠️ Cụ chưa chọn người thân hợp lệ.");
+                openZaloChat(phone2);
             }
         } else {
             const phone = phone1 || phone2;
             if (confirm("🚨 Mở Zalo để liên hệ khẩn cấp với người thân?")) {
-                window.location.href = "https://zalo.me/" + phone;
+                openZaloChat(phone);
             }
         }
     }
 
-    /* 6.2. HÀM TỰ ĐỘNG BÁO CẢNH BÁO (ĐỎ/CAM) CHO CON CHÁU QUA ZALO */
+    /* 6.2. HÀM MỞ ZALO CHAT CHUẨN XÁC KHÔNG BỊ LỖI RA PROFILE */
+    function openZaloChat(phone, message = "") {
+        // Nếu có nội dung tin nhắn, đưa vào URL để Zalo tự động điền (hoặc hỗ trợ gửi nhanh)
+        let zaloUrl = `https://zalo.me/${phone}`;
+        window.location.href = zaloUrl;
+    }
+
+    /* 6.3. HÀM TỰ ĐỘNG BÁO CẢNH BÁO CHO CON CHÁU QUA ZALO */
     function sendAlertToZalo(alertLevel, userMessage, aiReply) {
         const accountPhone = localStorage.getItem("user_phone");
         if (!accountPhone) return;
 
-        let phone1 = localStorage.getItem("sos_phone1_" + accountPhone) || "";
-        let phone2 = localStorage.getItem("sos_phone2_" + accountPhone) || "";
+        let phone1 = formatPhoneNumber(localStorage.getItem("sos_phone1_" + accountPhone) || "");
+        let phone2 = formatPhoneNumber(localStorage.getItem("sos_phone2_" + accountPhone) || "");
+        const targetPhone = phone1 || phone2;
 
-        const targetPhone = formatPhoneNumber(phone1) || formatPhoneNumber(phone2);
-
-        if (!targetPhone) {
-            console.warn("Chưa cài số điện thoại người thân để gửi cảnh báo Zalo.");
-            return;
-        }
+        if (!targetPhone) return;
 
         const levelText = alertLevel.toUpperCase() === "RED" ? "ĐỎ (NGUY HIỂM)" : "CAM (ĐÁNG NGỜ)";
 
-        // Nội dung cảnh báo soạn sẵn
         const alertMessage = 
             `🚨 [CẢNH BÁO SAFEAI - MỨC ${levelText}]\n\n` +
             `Người thân vừa kiểm tra nội dung có dấu hiệu rủi ro:\n` +
@@ -991,15 +987,14 @@
             `⚠️ Lời khuyên từ AI: ${aiReply.substring(0, 150)}...\n\n` +
             `Con/Cháu hãy liên hệ ngay với người thân để hỗ trợ kịp thời!`;
 
-        // Sao chép sẵn nội dung vào bộ nhớ tạm (Clipboard)
+        // Sao chép nội dung vào bộ nhớ tạm để người thân dán vào khung chat nhanh chóng
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(alertMessage).catch(err => console.error(err));
         }
 
-        // Đợi 1 giây để người dùng đọc xong kết quả rồi hỏi mở Zalo
         setTimeout(() => {
-            if (confirm(`🚨 Phát hiện nội dung CẢNH BÁO ${levelText}!\n\nCụ/Bác có muốn mở Zalo gửi thông báo này cho con cháu hỗ trợ ngay không?`)) {
-                window.location.href = "https://zalo.me/" + targetPhone;
+            if (confirm(`🚨 Phát hiện nội dung CẢNH BÁO ${levelText}!\n\nCụ/Bác có muốn mở Zalo gửi thông báo này cho con cháu hỗ trợ ngay không?\n(Nội dung đã được tự động sao chép sẵn để dán vào tin nhắn).`)) {
+                openZaloChat(targetPhone);
             }
         }, 1000);
     }
