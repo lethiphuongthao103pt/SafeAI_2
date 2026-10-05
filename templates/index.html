@@ -894,7 +894,7 @@
         }
     }
 
-    /* 6. BÁO ĐỘNG SOS */
+    /* 6. BÁO ĐỘNG SOS (Đã lọc sạch số điện thoại để mở thẳng tin nhắn Zalo) */
     function triggerSOS() {
         const accountPhone = localStorage.getItem("user_phone");
 
@@ -903,11 +903,24 @@
             return;
         }
 
-        const phone1 = localStorage.getItem("sos_phone1_" + accountPhone);
-        const phone2 = localStorage.getItem("sos_phone2_" + accountPhone);
+        let phone1 = localStorage.getItem("sos_phone1_" + accountPhone) || "";
+        let phone2 = localStorage.getItem("sos_phone2_" + accountPhone) || "";
+
+        // Hàm loại bỏ tất cả ký tự không phải chữ số (chuyển +84948677187 hoặc 0948 677 187 thành 0948677187)
+        const formatPhone = (phone) => {
+            let clean = phone.replace(/\D/g, '');
+            // Nếu số bắt đầu bằng 84, chuyển về 0
+            if (clean.startsWith('84')) {
+                clean = '0' + clean.slice(2);
+            }
+            return clean;
+        };
+
+        phone1 = formatPhone(phone1);
+        phone2 = formatPhone(phone2);
 
         if (!phone1 && !phone2) {
-            alert("⚠️ Cụ chưa cài số người thân SOS.");
+            alert("⚠️️ Cụ chưa cài số người thân SOS.");
             return;
         }
 
@@ -918,16 +931,16 @@
                 "Nhập 2 → Người thân 2"
             );
 
-            if (choice === "1") {
+            if (choice === "1" && phone1) {
                 window.location.href = "https://zalo.me/" + phone1;
-            } else if (choice === "2") {
+            } else if (choice === "2" && phone2) {
                 window.location.href = "https://zalo.me/" + phone2;
             } else {
-                alert("⚠️ Cụ chưa chọn người thân.");
+                alert("⚠️ Cụ chưa chọn người thân hợp lệ.");
             }
         } else {
             const phone = phone1 || phone2;
-            if (confirm("🚨 Mở Zalo để liên hệ người thân?")) {
+            if (confirm("🚨 Mở Zalo để nhắn tin cho người thân?")) {
                 window.location.href = "https://zalo.me/" + phone;
             }
         }
