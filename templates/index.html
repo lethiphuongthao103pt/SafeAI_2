@@ -1005,15 +1005,141 @@
             }
         }
     }
-    /* 7. XỬ LÝ TẢI ẢNH MÀN HÌNH */
-    function handleImageUpload(event) {
-        const file = event.target.files[0];
-        if (file) {
-            const input = document.getElementById('userInput');
-            input.value = `[Ảnh đã chọn: ${file.name}] - Cháu hãy kiểm tra ảnh này giúp Cụ!`;
-        }
+    /* =========================================================
+       7. XỬ LÝ TẢI VÀ GIẢI MÃ ẢNH MÀN HÌNH (CHUẨN GIAO DIỆN ZALO)
+    ========================================================= */
+
+    // Hàm lấy thời gian hiện tại HH:MM (Giống file guianh.html)
+    function getCurrentTime() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
     }
 
+    /* HÀM XỬ LÝ TẢI VÀ GỬI ẢNH CHÍNH */
+    function handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const chatBody = document.getElementById('chatBody');
+
+        // 1. Đọc file ảnh dưới dạng DataURL (Base64)
+        const reader = new FileReader();
+        reader.onload = async function (e) {
+            const base64Image = e.target.result;
+
+            // 2. Hiển thị tin nhắn ảnh của người dùng (Chuẩn cấu trúc guianh.html)
+            const userRow = document.createElement('div');
+            userRow.className = 'message user-msg';
+            userRow.style.padding = '4px';
+            userRow.style.background = 'transparent';
+            userRow.style.border = 'none';
+            userRow.style.boxShadow = 'none';
+
+            userRow.innerHTML = `
+                <div style="background: #0068FF; padding: 6px; border-radius: 12px; display: inline-block;">
+                    <img src="${base64Image}" style="max-width: 220px; max-height: 220px; border-radius: 8px; object-fit: cover; display: block;" alt="Ảnh tải lên">
+                    <div style="font-size: 10px; color: rgba(255, 255, 255, 0.8); margin-top: 4px; text-align: right;">${getCurrentTime()}</div>
+                </div>
+            `;
+            chatBody.appendChild(userRow);
+
+            // 3. Hiển thị khung chờ AI phân tích
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message bot-msg';
+            loadingDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cháu đang đọc chữ và phân tích ảnh...';
+            chatBody.appendChild(loadingDiv);
+            chatBody.scrollTop = chatBody.scrollHeight;
+
+            try {
+                // 4. Gửi Base64 sang API Backend Flask
+                const response = await fetch('/api/check-scam-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64Image })
+                });
+
+                const data = await response.json();
+                let replyFormatted = (data.reply || "").replace(/\n/g, '<br>');
+                let encodedReply = encodeURIComponent(data.reply || "");
+                let alertLevel = (data.alert_level || "green").toLowerCase();
+
+                let alertBox = "";
+
+                if (alertLevel === "red") {
+                    alertBox = `
+                        <div class="alert-card alert-danger">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <i class="fa-solid fa-triangle-exclamation" style="font-size:20px;"></i>
+                                <b>CẢNH BÁO ĐỎ: NGUY HIỂM!</b>
+                            </div>
+                            <div>${replyFormatted}</div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                                <button class="speak-btn" onclick="speakText('${encodedReply}')">
+                                    <i class="fa-solid fa-volume-high"></i> Nghe lời khuyên
+                                </button>
+                                <button class="speak-btn" style="background:#DC2626;" onclick="sendAlertToZalo('RED', '[Ảnh màn hình]', '${(data.reply || '').replace(/'/g, "\\'").replace(/\n/g, ' ')}')">
+                                    <i class="fa-solid fa-paper-plane"></i> Báo con cháu qua Zalo
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else if (alertLevel === "orange") {
+                    alertBox = `
+                        <div class="alert-card alert-warning">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <i class="fa-solid fa-triangle-exclamation" style="font-size:20px;"></i>
+                                <b>CẢNH BÁO CAM: ĐÁNG NGỜ!</b>
+                            </div>
+                            <div>${replyFormatted}</div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                                <button class="speak-btn" onclick="speakText('${encodedReply}')">
+                                    <i class="fa-solid fa-volume-high"></i> Nghe lời khuyên
+                                </button>
+                                <button class="speak-btn" style="background:#F57C00;" onclick="sendAlertToZalo('ORANGE', '[Ảnh màn hình]', '${(data.reply || '').replace(/'/g, "\\'").replace(/\n/g, ' ')}')">
+                                    <i class="fa-solid fa-paper-plane"></i> Báo con cháu qua Zalo
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    alertBox = `
+                        <div class="alert-card alert-safe">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <i class="fa-solid fa-circle-check" style="font-size:20px;"></i>
+                                <b>CẢNH BÁO XANH: AN TOÀN!</b>
+                            </div>
+                            <div>${replyFormatted}</div>
+                            <button class="speak-btn" onclick="speakText('${encodedReply}')">
+                                <i class="fa-solid fa-volume-high"></i> Nghe lại lời khuyên
+                            </button>
+                        </div>
+                    `;
+                }
+
+                loadingDiv.innerHTML = alertBox;
+                speakText(encodedReply);
+
+                // Tự động kích hoạt thông báo Zalo nếu rơi vào mức Đỏ / Cam
+                if ((alertLevel === "red" || alertLevel === "orange") && typeof sendAlertToZalo === 'function') {
+                    sendAlertToZalo(alertLevel, "[Ảnh chụp màn hình có dấu hiệu rủi ro]", data.reply || '');
+                }
+
+            } catch (error) {
+                console.error("Lỗi gửi ảnh:", error);
+                loadingDiv.innerHTML = `
+                    <div class="alert-card alert-danger">
+                        <i class="fa-solid fa-wifi"></i> Không thể phân tích ảnh lúc này. Cụ tuyệt đối KHÔNG chuyển tiền nhé!
+                    </div>
+                `;
+            }
+            chatBody.scrollTop = chatBody.scrollHeight;
+        };
+
+        reader.readAsDataURL(file);
+        event.target.value = ''; // Reset input để có thể chọn lại cùng 1 ảnh
+    }
     /* 8. HỒ SƠ CỦA CỤ */
     function openProfile() {
         const accountPhone = localStorage.getItem("user_phone");
