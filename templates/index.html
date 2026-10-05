@@ -592,7 +592,7 @@
 </div>
 
 <script>
-    /* 1. ĐĂNG NHẬP & ĐĂNG XUẤT */
+    /* 1. ĐĂNG NHẬP & ĐĂNG XUẤT (XÁC THỰC MẬT KHẨU TRÊN THIẾT BỊ) */
     function loginUser() {
         const phoneInput = document.getElementById("login-phone");
         const passwordInput = document.getElementById("login-password");
@@ -602,30 +602,48 @@
         const password = passwordInput.value.trim();
 
         if (!phone) {
-            message.textContent = "⚠️ Cụ vui lòng nhập số điện thoại.";
+            message.textContent = "⚠️ Cụ/Bác vui lòng nhập số điện thoại.";
             phoneInput.focus();
             return;
         }
 
         if (!password) {
-            message.textContent = "⚠️ Cụ vui lòng nhập mật khẩu.";
+            message.textContent = "⚠️ Cụ/Bác vui lòng nhập mật khẩu.";
             passwordInput.focus();
             return;
         }
 
+        // Lấy mật khẩu đã đăng ký của SĐT này trên thiết bị
+        const savedPassword = localStorage.getItem("user_password_" + phone);
+
+        if (savedPassword) {
+            // Kiểm tra mật khẩu nếu tài khoản đã tồn tại
+            if (password !== savedPassword) {
+                message.textContent = "❌ Mật khẩu không đúng. Vui lòng kiểm tra lại!";
+                passwordInput.value = "";
+                passwordInput.focus();
+                return;
+            }
+        } else {
+            // Tự động thiết lập mật khẩu mới cho lần đầu tiên đăng nhập
+            localStorage.setItem("user_password_" + phone, password);
+            alert("🎉 Đã thiết lập mật khẩu thành công cho tài khoản!");
+        }
+
+        // Lưu trạng thái đăng nhập
         localStorage.setItem("user_phone", phone);
         localStorage.setItem("safeai_logged_in", "true");
 
+        // Ẩn màn hình đăng nhập
         document.getElementById("login-screen").style.display = "none";
         message.textContent = "";
-    }
 
-    function logoutUser() {
-        localStorage.removeItem("safeai_logged_in");
-        closeProfile();
-        document.getElementById("login-screen").style.display = "flex";
+        // Cập nhật SĐT tài khoản lên giao diện Hồ sơ
+        const profilePhoneElement = document.getElementById("profile-account-phone");
+        if (profilePhoneElement) {
+            profilePhoneElement.innerText = phone;
+        }
     }
-
     /* 2. KIỂM TRA TRẠNG THÁI KHAI TRƯƠNG */
     window.addEventListener("DOMContentLoaded", function () {
         const loggedIn = localStorage.getItem("safeai_logged_in");
