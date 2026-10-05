@@ -894,7 +894,21 @@
         }
     }
 
-    /* 6. BÁO ĐỘNG SOS (Đã lọc sạch số điện thoại để mở thẳng tin nhắn Zalo) */
+   /* =========================================================
+       6. BÁO ĐỘNG SOS & GỬI CẢNH BÁO CHO CON CHÁU QUA ZALO
+    ========================================================= */
+
+    // Hàm phụ trợ: Chuẩn hóa số điện thoại về dạng thuần chữ số (VD: 0948677187)
+    function formatPhoneNumber(phone) {
+        if (!phone) return '';
+        let clean = phone.replace(/\D/g, ''); // Xóa toàn bộ ký tự không phải số
+        if (clean.startsWith('84')) {
+            clean = '0' + clean.slice(2); // Chuyển đầu +84 hoặc 84 về 0
+        }
+        return clean;
+    }
+
+    /* 6.1. XỬ LÝ KHI NHẤN NÚT SOS */
     function triggerSOS() {
         const accountPhone = localStorage.getItem("user_phone");
 
@@ -906,29 +920,20 @@
         let phone1 = localStorage.getItem("sos_phone1_" + accountPhone) || "";
         let phone2 = localStorage.getItem("sos_phone2_" + accountPhone) || "";
 
-        // Hàm loại bỏ tất cả ký tự không phải chữ số (chuyển +84948677187 hoặc 0948 677 187 thành 0948677187)
-        const formatPhone = (phone) => {
-            let clean = phone.replace(/\D/g, '');
-            // Nếu số bắt đầu bằng 84, chuyển về 0
-            if (clean.startsWith('84')) {
-                clean = '0' + clean.slice(2);
-            }
-            return clean;
-        };
-
-        phone1 = formatPhone(phone1);
-        phone2 = formatPhone(phone2);
+        phone1 = formatPhoneNumber(phone1);
+        phone2 = formatPhoneNumber(phone2);
 
         if (!phone1 && !phone2) {
-            alert("⚠️️ Cụ chưa cài số người thân SOS.");
+            alert("⚠️ Cụ chưa cài số điện thoại người thân trong Hồ sơ.");
+            openProfile(); // Tự động mở hộp thoại Hồ sơ để cài số
             return;
         }
 
         if (phone1 && phone2) {
             const choice = prompt(
-                "🚨 LIÊN HỆ KHẨN CẤP\n\n" +
-                "Nhập 1 → Người thân 1\n" +
-                "Nhập 2 → Người thân 2"
+                "🚨 LIÊN HỆ KHẨN CẤP SOS\n\n" +
+                "Nhập 1 → Nhắn Zalo cho Người thân 1\n" +
+                "Nhập 2 → Nhắn Zalo cho Người thân 2"
             );
 
             if (choice === "1" && phone1) {
@@ -940,10 +945,48 @@
             }
         } else {
             const phone = phone1 || phone2;
-            if (confirm("🚨 Mở Zalo để nhắn tin cho người thân?")) {
+            if (confirm("🚨 Mở Zalo để liên hệ khẩn cấp với người thân?")) {
                 window.location.href = "https://zalo.me/" + phone;
             }
         }
+    }
+
+    /* 6.2. HÀM TỰ ĐỘNG BÁO CẢNH BÁO (ĐỎ/CAM) CHO CON CHÁU QUA ZALO */
+    function sendAlertToZalo(alertLevel, userMessage, aiReply) {
+        const accountPhone = localStorage.getItem("user_phone");
+        if (!accountPhone) return;
+
+        let phone1 = localStorage.getItem("sos_phone1_" + accountPhone) || "";
+        let phone2 = localStorage.getItem("sos_phone2_" + accountPhone) || "";
+
+        const targetPhone = formatPhoneNumber(phone1) || formatPhoneNumber(phone2);
+
+        if (!targetPhone) {
+            console.warn("Chưa cài số điện thoại người thân để gửi cảnh báo Zalo.");
+            return;
+        }
+
+        const levelText = alertLevel.toUpperCase() === "RED" ? "ĐỎ (NGUY HIỂM)" : "CAM (ĐÁNG NGỜ)";
+
+        // Nội dung cảnh báo soạn sẵn
+        const alertMessage = 
+            `🚨 [CẢNH BÁO SAFEAI - MỨC ${levelText}]\n\n` +
+            `Người thân vừa kiểm tra nội dung có dấu hiệu rủi ro:\n` +
+            `👉 Nội dung hỏi: "${userMessage}"\n\n` +
+            `⚠️ Lời khuyên từ AI: ${aiReply.substring(0, 150)}...\n\n` +
+            `Con/Cháu hãy liên hệ ngay với người thân để hỗ trợ kịp thời!`;
+
+        // Sao chép sẵn nội dung vào bộ nhớ tạm (Clipboard)
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(alertMessage).catch(err => console.error(err));
+        }
+
+        // Đợi 1 giây để người dùng đọc xong kết quả rồi hỏi mở Zalo
+        setTimeout(() => {
+            if (confirm(`🚨 Phát hiện nội dung CẢNH BÁO ${levelText}!\n\nCụ/Bác có muốn mở Zalo gửi thông báo này cho con cháu hỗ trợ ngay không?`)) {
+                window.location.href = "https://zalo.me/" + targetPhone;
+            }
+        }, 1000);
     }
 
     /* 7. XỬ LÝ TẢI ẢNH MÀN HÌNH */
