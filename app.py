@@ -425,35 +425,20 @@ def check_scam_image():
 
         image_bytes = base64.b64decode(encoded)
 
-        # 2. Sử dụng Gemini OCR đọc chữ an toàn
-        extracted_text = ""
-        try:
-            # Khởi tạo mô hình Gemini Flash để đọc chữ từ ảnh
-            ocr_model = genai.GenerativeModel('gemini-1.5-flash')
-            
-            # Truyền dữ liệu dạng Part hoặc dict chuẩn của google-generativeai
-            image_part = {
-                'mime_type': 'image/jpeg',
-                'data': image_bytes
-            }
-            
-            ocr_response = ocr_model.generate_content([
-                "Hãy trích xuất và đọc chính xác toàn bộ chữ/văn bản có trong bức ảnh này thành một đoạn văn bản thuần túy. Không giải thích gì thêm.",
-                image_part
-            ])
-            
-            if ocr_response and ocr_response.text:
-                extracted_text = ocr_response.text.strip()
-        except Exception as gemini_err:
-            print(f"Lỗi Gemini OCR chi tiết: {gemini_err}")
-            # Dự phòng: Nếu Gemini OCR lỗi, thử phân tích trực tiếp ảnh bằng mô hình vision nếu có, hoặc báo lỗi cụ thể
-            return jsonify({
-                'reply': '🚨 1. ĐÁNH GIÁ MỨC ĐỘ RỦI RO: 50% - ĐÁNG NGỜ\n\nCháu đọc ảnh bị lỗi kết nối với máy chủ AI. Cụ tuyệt đối KHÔNG chuyển tiền hay làm theo hướng dẫn trong ảnh nhé!',
-                'alert_level': 'orange',
-                'alert_color': '#f57c00'
-            })
+        # 2. Sử dụng Gemini OCR đọc chữ
+        ocr_model = genai.GenerativeModel('gemini-1.5-flash')
+        image_part = {
+            'mime_type': 'image/jpeg',
+            'data': image_bytes
+        }
+        
+        ocr_response = ocr_model.generate_content([
+            "Hãy trích xuất và đọc chính xác toàn bộ chữ/văn bản có trong bức ảnh này thành một đoạn văn bản thuần túy. Không giải thích gì thêm.",
+            image_part
+        ])
+        
+        extracted_text = ocr_response.text.strip() if ocr_response and ocr_response.text else ""
 
-        # Nếu ảnh không chứa chữ
         if not extracted_text:
             return jsonify({
                 'reply': 'Cháu không tìm thấy chữ nào trong bức ảnh này. Cụ hãy kiểm tra lại ảnh nhé!',
@@ -461,10 +446,12 @@ def check_scam_image():
                 'alert_color': '#f57c00'
             })
 
-        # 3. Chuyển đoạn chữ đọc được qua Groq để phân tích lừa đảo (y hệt văn bản)
+        print(f"DEBUG - Đã OCR thành công nội dung ảnh: {extracted_text}")
+
+        # 3. Gửi sang Groq phân tích
         if not client:
             return jsonify({
-                'reply': f"Đã đọc được chữ từ ảnh: \"{extracted_text}\"\n\nNhưng chưa cấu hình GROQ_API_KEY để phân tích!",
+                'reply': f"Đã đọc được chữ: \"{extracted_text}\"\n\nNhưng thiếu GROQ_API_KEY!",
                 'alert_level': 'orange',
                 'alert_color': '#f57c00'
             })
@@ -518,9 +505,13 @@ def check_scam_image():
         })
 
     except Exception as e:
-        print(f"Lỗi tổng quát hàm check-scam-image: {e}")
+        # In chi tiết lỗi ra màn hình console của server để kiểm tra
+        print(f"LỖI CHI TIẾT TẠI check_scam_image: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
         return jsonify({
-            'reply': 'Cháu không đọc được nội dung ảnh này. Cụ tuyệt đối KHÔNG làm theo hướng dẫn hoặc chuyển tiền nhé!',
+            'reply': f'Lỗi hệ thống khi phân tích ảnh: {str(e)}',
             'alert_level': 'orange',
             'alert_color': '#f57c00'
         }), 200
