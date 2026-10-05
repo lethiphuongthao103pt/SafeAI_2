@@ -411,13 +411,13 @@ def check_scam():
 @app.route('/api/check-scam-image', methods=['POST'])
 def check_scam_image():
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         image_data = data.get('image')
 
         if not image_data:
             return jsonify({'reply': 'Không nhận được dữ liệu ảnh.', 'alert_level': 'orange'})
 
-        # 1. Tách chuỗi Base64 để lấy byte ảnh
+        # 1. Tách chuỗi Base64
         if "," in image_data:
             header, encoded = image_data.split(",", 1)
         else:
@@ -425,33 +425,55 @@ def check_scam_image():
 
         image_bytes = base64.b64decode(encoded)
 
-        # 2. Dùng Gemini BƯỚC ĐỌC CHỮ (OCR) duy nhất từ ảnh
-        ocr_model = genai.GenerativeModel('gemini-1.5-flash')
-        ocr_prompt = "Hãy trích xuất và đọc chính xác toàn bộ văn bản/chữ có trong bức ảnh này. Không cần phân tích hay giải thích gì thêm."
-        
-        ocr_response = ocr_model.generate_content([
-            ocr_prompt,
-            {'mime_type': 'image/jpeg', 'data': image_bytes}
-        ])
+        # 2. Sử dụng Gemini OCR đọc chữ an toàn
+        extracted_text = ""
+        try:
+            # Khởi tạo mô hình Gemini Flash để đọc chữ từ ảnh
+            ocr_model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # Truyền dữ liệu dạng Part hoặc dict chuẩn của google-generativeai
+            image_part = {
+                'mime_type': 'image/jpeg',
+                'data': image_bytes
+            }
+            
+            ocr_response = ocr_model.generate_content([
+                "Hãy trích xuất và đọc chính xác toàn bộ chữ/văn bản có trong bức ảnh này thành một đoạn văn bản thuần túy. Không giải thích gì thêm.",
+                image_part
+            ])
+            
+            if ocr_response and ocr_response.text:
+                extracted_text = ocr_response.text.strip()
+        except Exception as gemini_err:
+            print(f"Lỗi Gemini OCR chi tiết: {gemini_err}")
+            # Dự phòng: Nếu Gemini OCR lỗi, thử phân tích trực tiếp ảnh bằng mô hình vision nếu có, hoặc báo lỗi cụ thể
+            return jsonify({
+                'reply': '🚨 1. ĐÁNH GIÁ MỨC ĐỘ RỦI RO: 50% - ĐÁNG NGỜ\n\nCháu đọc ảnh bị lỗi kết nối với máy chủ AI. Cụ tuyệt đối KHÔNG chuyển tiền hay làm theo hướng dẫn trong ảnh nhé!',
+                'alert_level': 'orange',
+                'alert_color': '#f57c00'
+            })
 
-        extracted_text = ocr_response.text.strip()
-
-        # Nếu ảnh không có chữ
+        # Nếu ảnh không chứa chữ
         if not extracted_text:
             return jsonify({
                 'reply': 'Cháu không tìm thấy chữ nào trong bức ảnh này. Cụ hãy kiểm tra lại ảnh nhé!',
-                'alert_level': 'orange'
+                'alert_level': 'orange',
+                'alert_color': '#f57c00'
             })
 
-        # 3. TÁI SỬ DỤNG LẠI PROMPT VÀ MODEL GROQ (Y hệt như khi gõ văn bản / mic)
+        # 3. Chuyển đoạn chữ đọc được qua Groq để phân tích lừa đảo (y hệt văn bản)
         if not client:
-            return jsonify({'reply': 'Chưa tìm thấy GROQ_API_KEY trong môi trường!'})
+            return jsonify({
+                'reply': f"Đã đọc được chữ từ ảnh: \"{extracted_text}\"\n\nNhưng chưa cấu hình GROQ_API_KEY để phân tích!",
+                'alert_level': 'orange',
+                'alert_color': '#f57c00'
+            })
 
         selected_model = "openai/gpt-oss-120b"
         chat_completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": extracted_text}
+                {"role": "user", "content": f"Nội dung trích xuất từ ảnh màn hình cần kiểm tra là:\n{extracted_text}"}
             ],
             model=selected_model,
             temperature=0.3
@@ -459,7 +481,7 @@ def check_scam_image():
 
         reply_text = chat_completion.choices[0].message.content
 
-        # 4. Xử lý LEVEL (RED/ORANGE/GREEN) chuẩn theo Prompt hệ thống của bạn
+        # 4. Xử lý mức cảnh báo (LEVEL)
         alert_level = "green"
         alert_color = "#2e7d32"
 
@@ -496,10 +518,11 @@ def check_scam_image():
         })
 
     except Exception as e:
-        print("Lỗi xử lý ảnh:", e)
+        print(f"Lỗi tổng quát hàm check-scam-image: {e}")
         return jsonify({
             'reply': 'Cháu không đọc được nội dung ảnh này. Cụ tuyệt đối KHÔNG làm theo hướng dẫn hoặc chuyển tiền nhé!',
-            'alert_level': 'orange'
-        }), 500
+            'alert_level': 'orange',
+            'alert_color': '#f57c00'
+        }), 200
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
