@@ -693,7 +693,7 @@
         });
     }
 
-    /* 4. GỬI TIN NHẮN (KIỂM TRA BẰNG VĂN BẢN/GIỌNG NÓI ĐÃ CHUYỂN THÀNH CHỮ) */
+   /* 4. GỬI TIN NHẮN (KIỂM TRA BẰNG VĂN BẢN / GIỌNG NÓI) */
     async function sendMessage() {
         const input = document.getElementById('userInput');
         const chatBody = document.getElementById('chatBody');
@@ -704,8 +704,8 @@
             return;
         }
 
-        // Tự động tắt mic nếu đang bật thu âm khi người dùng bấm gửi
-        if (isRecording) {
+        // Tự động tắt mic nếu đang bật thu âm
+        if (typeof isRecording !== 'undefined' && isRecording) {
             toggleVoiceInput();
         }
 
@@ -736,7 +736,7 @@
             const data = await response.json();
             let replyFormatted = (data.reply || "").replace(/\n/g, '<br>');
             let encodedReply = encodeURIComponent(data.reply || "");
-            let alertLevel = data.alert_level || "green";
+            let alertLevel = (data.alert_level || "green").toLowerCase();
 
             let alertBox = "";
 
@@ -748,9 +748,14 @@
                             <b>CẢNH BÁO ĐỎ: NGUY HIỂM!</b>
                         </div>
                         <div>${replyFormatted}</div>
-                        <button class="speak-btn" onclick="speakText('${encodedReply}')">
-                            <i class="fa-solid fa-volume-high"></i> Nghe lại lời khuyên
-                        </button>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                            <button class="speak-btn" onclick="speakText('${encodedReply}')">
+                                <i class="fa-solid fa-volume-high"></i> Nghe lời khuyên
+                            </button>
+                            <button class="speak-btn" style="background:#DC2626;" onclick="sendAlertToZalo('RED', '${text.replace(/'/g, "\\'")}', '${(data.reply || '').replace(/'/g, "\\'").replace(/\n/g, ' ')}')">
+                                <i class="fa-solid fa-paper-plane"></i> Báo con cháu qua Zalo
+                            </button>
+                        </div>
                     </div>
                 `;
             } else if (alertLevel === "orange") {
@@ -761,9 +766,14 @@
                             <b>CẢNH BÁO CAM: ĐÁNG NGỜ!</b>
                         </div>
                         <div>${replyFormatted}</div>
-                        <button class="speak-btn" onclick="speakText('${encodedReply}')">
-                            <i class="fa-solid fa-volume-high"></i> Nghe lại lời khuyên
-                        </button>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                            <button class="speak-btn" onclick="speakText('${encodedReply}')">
+                                <i class="fa-solid fa-volume-high"></i> Nghe lời khuyên
+                            </button>
+                            <button class="speak-btn" style="background:#F57C00;" onclick="sendAlertToZalo('ORANGE', '${text.replace(/'/g, "\\'")}', '${(data.reply || '').replace(/'/g, "\\'").replace(/\n/g, ' ')}')">
+                                <i class="fa-solid fa-paper-plane"></i> Báo con cháu qua Zalo
+                            </button>
+                        </div>
                     </div>
                 `;
             } else {
@@ -783,6 +793,11 @@
 
             loadingDiv.innerHTML = alertBox;
             speakText(encodedReply);
+
+            // KHỐI KÍCH HOẠT TỰ ĐỘNG GỬI ZALO CHO MỨC ĐỎ HOẶC CAM
+            if (alertLevel === "red" || alertLevel === "orange") {
+                sendAlertToZalo(alertLevel, text, data.reply || '');
+            }
 
         } catch (error) {
             console.error("Lỗi kết nối Server:", error);
