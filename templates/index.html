@@ -1005,33 +1005,55 @@
             }
         }
     }
-    /* 7. XỬ LÝ TẢI VÀ GỬI ẢNH MÀN HÌNH ĐẾN SERVER (/api/check-scam-image) */
+    /* =========================================================
+       7. XỬ LÝ TẢI VÀ GIẢI MÃ ẢNH MÀN HÌNH (CHUẨN GIAO DIỆN ZALO)
+    ========================================================= */
+
+    // Hàm lấy thời gian hiện tại HH:MM (Giống file guianh.html)
+    function getCurrentTime() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+
+    /* HÀM XỬ LÝ TẢI VÀ GỬI ẢNH CHÍNH */
     function handleImageUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
 
         const chatBody = document.getElementById('chatBody');
 
-        // 1. Hiển thị tin nhắn người dùng đã chọn ảnh
-        const userDiv = document.createElement('div');
-        userDiv.className = 'message user-msg';
-        userDiv.innerHTML = `<i class="fa-solid fa-image"></i> Đã gửi 1 ảnh màn hình (${file.name}) để kiểm tra`;
-        chatBody.appendChild(userDiv);
-
-        // 2. Hiển thị trạng thái AI đang phân tích
-        const loadingDiv = document.createElement('div');
-        loadingDiv.className = 'message bot-msg';
-        loadingDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cháu đang đọc chữ và phân tích ảnh...';
-        chatBody.appendChild(loadingDiv);
-        chatBody.scrollTop = chatBody.scrollHeight;
-
-        // 3. Đọc file ảnh dưới dạng Base64
+        // 1. Đọc file ảnh dưới dạng DataURL (Base64)
         const reader = new FileReader();
         reader.onload = async function (e) {
             const base64Image = e.target.result;
 
+            // 2. Hiển thị tin nhắn ảnh của người dùng (Chuẩn cấu trúc guianh.html)
+            const userRow = document.createElement('div');
+            userRow.className = 'message user-msg';
+            userRow.style.padding = '4px';
+            userRow.style.background = 'transparent';
+            userRow.style.border = 'none';
+            userRow.style.boxShadow = 'none';
+
+            userRow.innerHTML = `
+                <div style="background: #0068FF; padding: 6px; border-radius: 12px; display: inline-block;">
+                    <img src="${base64Image}" style="max-width: 220px; max-height: 220px; border-radius: 8px; object-fit: cover; display: block;" alt="Ảnh tải lên">
+                    <div style="font-size: 10px; color: rgba(255, 255, 255, 0.8); margin-top: 4px; text-align: right;">${getCurrentTime()}</div>
+                </div>
+            `;
+            chatBody.appendChild(userRow);
+
+            // 3. Hiển thị khung chờ AI phân tích
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message bot-msg';
+            loadingDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cháu đang đọc chữ và phân tích ảnh...';
+            chatBody.appendChild(loadingDiv);
+            chatBody.scrollTop = chatBody.scrollHeight;
+
             try {
-                // Gửi Base64 sang API Backend Flask
+                // 4. Gửi Base64 sang API Backend Flask
                 const response = await fetch('/api/check-scam-image', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1116,7 +1138,8 @@
         };
 
         reader.readAsDataURL(file);
-        event.target.value = ''; // Reset input để có thể chọn lại cùng 1 ảnh nếu muốn
+        event.target.value = ''; // Reset input để có thể chọn lại cùng 1 ảnh
+    }
     }
 </script>
 
