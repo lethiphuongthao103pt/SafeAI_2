@@ -592,7 +592,7 @@
 </div>
 
 <script>
-    /* 1. ĐĂNG NHẬP & ĐĂNG XUẤT (XÁC THỰC MẬT KHẨU TRÊN THIẾT BỊ) */
+    /* 1. ĐĂNG NHẬP & ĐĂNG XUẤT (CÓ KIỂM TRA MẬT KHẨU VÀ ĐĂNG XUẤT CHUẨN) */
     function loginUser() {
         const phoneInput = document.getElementById("login-phone");
         const passwordInput = document.getElementById("login-password");
@@ -613,6 +613,53 @@
             return;
         }
 
+        // Lấy mật khẩu đã lưu của SĐT này trên thiết bị
+        const savedPassword = localStorage.getItem("user_password_" + phone);
+
+        if (savedPassword) {
+            // Trường hợp tài khoản ĐÃ TỒN TẠI -> Kiểm tra mật khẩu
+            if (password !== savedPassword) {
+                message.textContent = "❌ Mật khẩu không đúng. Vui lòng kiểm tra lại!";
+                passwordInput.value = "";
+                passwordInput.focus();
+                return;
+            }
+        } else {
+            // Trường hợp TÀI KHOẢN MỚI -> Lưu mật khẩu lần đầu
+            localStorage.setItem("user_password_" + phone, password);
+            alert("🎉 Đã tạo mật khẩu thành công cho tài khoản!");
+        }
+
+        // Lưu trạng thái đăng nhập
+        localStorage.setItem("user_phone", phone);
+        localStorage.setItem("safeai_logged_in", "true");
+
+        // Ẩn màn hình đăng nhập
+        document.getElementById("login-screen").style.display = "none";
+        message.textContent = "";
+
+        // Cập nhật SĐT tài khoản lên giao diện Hồ sơ
+        const profilePhoneElement = document.getElementById("profile-account-phone");
+        if (profilePhoneElement) {
+            profilePhoneElement.innerText = phone;
+        }
+    }
+
+    /* HÀM ĐĂNG XUẤT BỔ SUNG */
+    function logoutUser() {
+        // Xóa trạng thái đăng nhập
+        localStorage.removeItem("safeai_logged_in");
+        
+        // Đóng hộp thoại Hồ sơ
+        closeProfile();
+
+        // Xóa thông báo lỗi và xóa mật khẩu cũ trong ô nhập
+        document.getElementById("login-password").value = "";
+        document.getElementById("login-message").textContent = "";
+
+        // Hiện lại màn hình Đăng nhập
+        document.getElementById("login-screen").style.display = "flex";
+    }
         // Lấy mật khẩu đã đăng ký của SĐT này trên thiết bị
         const savedPassword = localStorage.getItem("user_password_" + phone);
 
