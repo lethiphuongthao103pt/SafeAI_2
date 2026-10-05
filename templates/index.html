@@ -592,103 +592,98 @@
 </div>
 
 <script>
-    /* 1. ĐĂNG NHẬP & ĐĂNG XUẤT (CÓ KIỂM TRA MẬT KHẨU VÀ ĐĂNG XUẤT CHUẨN) */
+    /* 1. ĐĂNG NHẬP & ĐĂNG XUẤT (CÓ KIỂM TRA MẬT KHẨU VÀ AN TOÀN TUYỆT ĐỐI) */
     function loginUser() {
-        const phoneInput = document.getElementById("login-phone");
-        const passwordInput = document.getElementById("login-password");
-        const message = document.getElementById("login-message");
+        try {
+            const phoneInput = document.getElementById("login-phone");
+            const passwordInput = document.getElementById("login-password");
+            const message = document.getElementById("login-message");
 
-        const phone = phoneInput.value.trim();
-        const password = passwordInput.value.trim();
+            if (!phoneInput || !passwordInput) return;
 
-        if (!phone) {
-            message.textContent = "⚠️ Cụ/Bác vui lòng nhập số điện thoại.";
-            phoneInput.focus();
-            return;
-        }
+            const phone = phoneInput.value.trim();
+            const password = passwordInput.value.trim();
 
-        if (!password) {
-            message.textContent = "⚠️ Cụ/Bác vui lòng nhập mật khẩu.";
-            passwordInput.focus();
-            return;
-        }
+            if (!phone) {
+                if (message) message.textContent = "⚠️ Cụ/Bác vui lòng nhập số điện thoại.";
+                phoneInput.focus();
+                return;
+            }
 
-        // Lấy mật khẩu đã lưu của SĐT này trên thiết bị
-        const savedPassword = localStorage.getItem("user_password_" + phone);
-
-        if (savedPassword) {
-            // Trường hợp tài khoản ĐÃ TỒN TẠI -> Kiểm tra mật khẩu
-            if (password !== savedPassword) {
-                message.textContent = "❌ Mật khẩu không đúng. Vui lòng kiểm tra lại!";
-                passwordInput.value = "";
+            if (!password) {
+                if (message) message.textContent = "⚠️ Cụ/Bác vui lòng nhập mật khẩu.";
                 passwordInput.focus();
                 return;
             }
-        } else {
-            // Trường hợp TÀI KHOẢN MỚI -> Lưu mật khẩu lần đầu
-            localStorage.setItem("user_password_" + phone, password);
-            alert("🎉 Đã tạo mật khẩu thành công cho tài khoản!");
-        }
 
-        // Lưu trạng thái đăng nhập
-        localStorage.setItem("user_phone", phone);
-        localStorage.setItem("safeai_logged_in", "true");
+            // Lấy mật khẩu đã lưu của SĐT này trên thiết bị
+            const savedPassword = localStorage.getItem("user_password_" + phone);
 
-        // Ẩn màn hình đăng nhập
-        document.getElementById("login-screen").style.display = "none";
-        message.textContent = "";
+            if (savedPassword) {
+                // Kiểm tra mật khẩu nếu tài khoản đã tồn tại
+                if (password !== savedPassword) {
+                    if (message) message.textContent = "❌ Mật khẩu không đúng. Vui lòng kiểm tra lại!";
+                    passwordInput.value = "";
+                    passwordInput.focus();
+                    return;
+                }
+            } else {
+                // Lưu mật khẩu lần đầu cho tài khoản mới
+                localStorage.setItem("user_password_" + phone, password);
+                alert("🎉 Đã tạo mật khẩu thành công cho tài khoản!");
+            }
 
-        // Cập nhật SĐT tài khoản lên giao diện Hồ sơ
-        const profilePhoneElement = document.getElementById("profile-account-phone");
-        if (profilePhoneElement) {
-            profilePhoneElement.innerText = phone;
+            // Lưu trạng thái đăng nhập
+            localStorage.setItem("user_phone", phone);
+            localStorage.setItem("safeai_logged_in", "true");
+
+            // Ẩn màn hình đăng nhập
+            const loginScreen = document.getElementById("login-screen");
+            if (loginScreen) {
+                loginScreen.style.display = "none";
+            }
+
+            if (message) message.textContent = "";
+
+            // Cập nhật SĐT tài khoản lên giao diện Hồ sơ (nếu thẻ tồn tại)
+            const profilePhoneElement = document.getElementById("profile-account-phone");
+            if (profilePhoneElement) {
+                profilePhoneElement.innerText = phone;
+            }
+
+        } catch (error) {
+            console.error("Lỗi khi đăng nhập:", error);
+            alert("Có lỗi xảy ra khi đăng nhập. Vui lòng thử lại!");
         }
     }
 
-    /* HÀM ĐĂNG XUẤT BỔ SUNG */
+    /* HÀM ĐĂNG XUẤT */
     function logoutUser() {
-        // Xóa trạng thái đăng nhập
-        localStorage.removeItem("safeai_logged_in");
-        
-        // Đóng hộp thoại Hồ sơ
-        closeProfile();
-
-        // Xóa thông báo lỗi và xóa mật khẩu cũ trong ô nhập
-        document.getElementById("login-password").value = "";
-        document.getElementById("login-message").textContent = "";
-
-        // Hiện lại màn hình Đăng nhập
-        document.getElementById("login-screen").style.display = "flex";
-    }
-        // Lấy mật khẩu đã đăng ký của SĐT này trên thiết bị
-        const savedPassword = localStorage.getItem("user_password_" + phone);
-
-        if (savedPassword) {
-            // Kiểm tra mật khẩu nếu tài khoản đã tồn tại
-            if (password !== savedPassword) {
-                message.textContent = "❌ Mật khẩu không đúng. Vui lòng kiểm tra lại!";
-                passwordInput.value = "";
-                passwordInput.focus();
-                return;
+        try {
+            // Xóa trạng thái đăng nhập
+            localStorage.removeItem("safeai_logged_in");
+            
+            // Đóng hộp thoại Hồ sơ nếu đang mở
+            if (typeof closeProfile === 'function') {
+                closeProfile();
+            } else {
+                const profileModal = document.getElementById("profile-modal");
+                if (profileModal) profileModal.style.display = "none";
             }
-        } else {
-            // Tự động thiết lập mật khẩu mới cho lần đầu tiên đăng nhập
-            localStorage.setItem("user_password_" + phone, password);
-            alert("🎉 Đã thiết lập mật khẩu thành công cho tài khoản!");
-        }
 
-        // Lưu trạng thái đăng nhập
-        localStorage.setItem("user_phone", phone);
-        localStorage.setItem("safeai_logged_in", "true");
+            // Xóa nội dung ô mật khẩu và ô thông báo
+            const passInput = document.getElementById("login-password");
+            const msgBox = document.getElementById("login-message");
+            if (passInput) passInput.value = "";
+            if (msgBox) msgBox.textContent = "";
 
-        // Ẩn màn hình đăng nhập
-        document.getElementById("login-screen").style.display = "none";
-        message.textContent = "";
-
-        // Cập nhật SĐT tài khoản lên giao diện Hồ sơ
-        const profilePhoneElement = document.getElementById("profile-account-phone");
-        if (profilePhoneElement) {
-            profilePhoneElement.innerText = phone;
+            // Hiện lại màn hình Đăng nhập
+            const loginScreen = document.getElementById("login-screen");
+            if (loginScreen) {
+                loginScreen.style.display = "flex";
+            }
+        } catch (error) {
+            console.error("Lỗi khi đăng xuất:", error);
         }
     }
     /* 2. KIỂM TRA TRẠNG THÁI KHAI TRƯƠNG */
