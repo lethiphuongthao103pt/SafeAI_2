@@ -8,13 +8,14 @@ from flask_cors import CORS
 from groq import Groq
 import google.generativeai as genai
 
-# Khai báo API Key của Gemini (lấy từ file .env hoặc dán trực tiếp key)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "NHẬP_GEMINI_API_KEY_CỦA_BẠN_VÀO_ĐÂY")
-genai.configure(api_key=GEMINI_API_KEY)
-
+# Đọc file .env trước khi lấy API key
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path=env_path, override=True)
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 app = Flask(__name__)
 CORS(app)
 # === THÊM ROUTE TRANG CHỦ TẠI ĐÂY ===
@@ -362,8 +363,8 @@ def check_scam():
         # LẤY MỨC CẢNH BÁO TỪ DÒNG LEVEL DO AI TRẢ VỀ
         # ==========================================================
 
-        alert_level = "green"
-        alert_color = "#2e7d32"
+        alert_level = "orange"
+        alert_color = "#f57c00"
 
         # Lấy dòng LEVEL do AI trả về
         match = re.search(
@@ -399,14 +400,20 @@ def check_scam():
             flags=re.IGNORECASE
         ).strip()
 
+        
         return jsonify({
             'reply': reply_text,
             'alert_level': alert_level,
             'alert_color': alert_color
         })
+
     except Exception as e:
         print(f"Lỗi Exception Detail: {e}")
-        return jsonify({'reply': f'🚨 1. ĐÁNH GIÁ MỨC ĐỘ RỦI RO: 50% - NGHỜ VẤN\n\nLỗi kết nối API: {str(e)[:100]}'})
+        return jsonify({
+            'reply': f'Chưa thể kiểm tra tin nhắn do lỗi kết nối API: {str(e)[:100]}',
+            'alert_level': 'orange',
+            'alert_color': '#f57c00'
+        }), 200
 
 @app.route('/api/check-scam-image', methods=['POST'])
 def check_scam_image():
@@ -416,19 +423,37 @@ def check_scam_image():
 
         if not image_data:
             return jsonify({'reply': 'Không nhận được dữ liệu ảnh.', 'alert_level': 'orange'})
+        if not GEMINI_API_KEY:
+            return jsonify({
+                'reply': 'Chưa cấu hình GEMINI_API_KEY trong file .env.',
+                'alert_level': 'orange',
+                'alert_color': '#f57c00'
+         }), 500
 
-        # 1. Tách chuỗi Base64
+       # 1. Tách dữ liệu ảnh và xác định đúng định dạng
         if "," in image_data:
             header, encoded = image_data.split(",", 1)
+            mime_match = re.match(r'data:(image/[\w.+-]+);base64', header)
+            mime_type = mime_match.group(1) if mime_match else 'image/jpeg'
         else:
             encoded = image_data
+            mime_type = 'image/jpeg'
 
-        image_bytes = base64.b64decode(encoded)
+        # Chỉ chấp nhận các định dạng ảnh thông dụng
+        if mime_type not in ('image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'):
+            return jsonify({
+                'reply': 'Định dạng ảnh chưa được hỗ trợ. Cụ hãy thử tải ảnh PNG hoặc JPG nhé!',
+                'alert_level': 'orange',
+                'alert_color': '#f57c00'
+            }), 400
 
-        # 2. Sử dụng Gemini OCR đọc chữ
-        ocr_model = genai.GenerativeModel('gemini-1.5-flash')
+        image_bytes = base64.b64decode(encoded, validate=True)
+
+        # 2. Dùng Gemini đọc chữ trong ảnh
+        ocr_model = genai.GenerativeModel('gemini-2.5-flash')
+
         image_part = {
-            'mime_type': 'image/jpeg',
+            'mime_type': mime_type,
             'data': image_bytes
         }
         
@@ -469,8 +494,8 @@ def check_scam_image():
         reply_text = chat_completion.choices[0].message.content
 
         # 4. Xử lý mức cảnh báo (LEVEL)
-        alert_level = "green"
-        alert_color = "#2e7d32"
+        alert_level = "orange"
+        alert_color = "#f57c00"
 
         match = re.search(
             r'^\s*LEVEL:\s*(RED|ORANGE|GREEN)\s*$',
