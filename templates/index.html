@@ -813,8 +813,8 @@
                         </button>
                          <button class="speak-btn"
                             style="background:#DC2626;"
-                            onclick="sendAlertToZalo('RED', '', '')">
-                            <i class="fa-solid fa-paper-plane"></i>Báo con cháu qua Zalo
+                            onclick="sendAlertBySms('RED', '${encodedReply.replace(/'/g, "%27")}')">
+                            <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua SMS
                         </button>
                     </div>
                 `;
@@ -828,6 +828,10 @@
                         <div>${replyFormatted}</div>
                         <button class="speak-btn" onclick="speakText('${encodedReply}')">
                             <i class="fa-solid fa-volume-high"></i> Nghe lại lời khuyên
+                        </button>
+                        <button class="speak-btn" style="background:#C2410C;"
+                            onclick="sendAlertBySms('ORANGE', '${encodedReply.replace(/'/g, "%27")}')">
+                            <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua SMS
                         </button>
                     </div>
                 `;
@@ -1079,6 +1083,94 @@ function sendAlertToZalo(level, message, advice) {
         prompt("Cụ hãy sao chép nội dung này để gửi qua Zalo:", content);
     }
 }
+
+/* 6.2. MỞ HỘP THOẠI SMS VỚI NGƯỜI NHẬN VÀ NỘI DUNG ĐÃ SOẠN */
+function sendAlertBySms(level, encodedAdvice) {
+    const normalizedLevel = String(level || "").toUpperCase();
+    if (normalizedLevel !== "RED" && normalizedLevel !== "ORANGE") return;
+
+    const accountPhone = localStorage.getItem("user_phone");
+    if (!accountPhone) {
+        alert("Cụ vui lòng đăng nhập trước nhé!");
+        return;
+    }
+
+    const rawPhone1 = localStorage.getItem("sos_phone1_" + accountPhone) || "";
+    const rawPhone2 = localStorage.getItem("sos_phone2_" + accountPhone) || "";
+
+    const normalizePhone = (value) => {
+        let phone = String(value || "").replace(/\D/g, "");
+        if (phone.startsWith("84")) phone = "0" + phone.slice(2);
+        return phone;
+    };
+
+    const phone1 = normalizePhone(rawPhone1);
+    const phone2 = normalizePhone(rawPhone2);
+
+    if (!phone1 && !phone2) {
+        alert("Cụ vui lòng vào Hồ sơ để đăng ký số điện thoại người thân.");
+        return;
+    }
+
+    let phone = phone1 || phone2;
+    if (phone1 && phone2) {
+        const choice = prompt(
+            "BÁO CHO CON CHÁU QUA SMS\n\n" +
+            "Nhập 1 → Người thân 1\n" +
+            "Nhập 2 → Người thân 2"
+        );
+
+        if (choice === "1") phone = phone1;
+        else if (choice === "2") phone = phone2;
+        else return;
+    }
+
+    let advice = "";
+    try {
+        advice = decodeURIComponent(encodedAdvice || "");
+    } catch (e) {
+        advice = String(encodedAdvice || "");
+    }
+
+    advice = advice
+        .replace(/^LEVEL:\s*(RED|ORANGE|GREEN)\s*/im, "")
+        .replace(/<[^>]*>/g, "")
+        .replace(/[\*_#`~]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 300);
+
+    let content;
+    if (normalizedLevel === "RED") {
+        content =
+            "Con ơi, SafeAI cảnh báo tin nhắn vừa kiểm tra có nguy cơ LỪA ĐẢO CAO. " +
+            (advice ? "Nhận xét của SafeAI: " + advice + " " : "") +
+            "Con gọi cho mẹ/ba để hỗ trợ xác minh nhé. Mẹ/ba chưa bấm link, chưa chuyển tiền và chưa cung cấp OTP/mật khẩu.";
+    } else {
+        content =
+            "Con ơi, SafeAI đánh giá tin nhắn vừa kiểm tra là ĐÁNG NGỜ, cần xác minh thêm. " +
+            (advice ? "Nhận xét của SafeAI: " + advice + " " : "") +
+            "Con kiểm tra giúp mẹ/ba nhé. Tạm thời mẹ/ba chưa bấm link, chuyển tiền hay cung cấp thông tin cá nhân.";
+    }
+
+    if (!confirm(
+        "SafeAI đã soạn tin nhắn cho người thân.\n\n" +
+        "Ứng dụng Tin nhắn sẽ mở với số điện thoại và nội dung điền sẵn.\n" +
+        "Cụ kiểm tra rồi nhấn Gửi. Tiếp tục?"
+    )) {
+        return;
+    }
+
+    // iOS thường dùng &body=; Android thường dùng ?body=.
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const smsUrl = isIOS
+        ? "sms:" + phone + "&body=" + encodeURIComponent(content)
+        : "sms:" + phone + "?body=" + encodeURIComponent(content);
+
+    window.location.href = smsUrl;
+}
+
     /* =========================================================
        7. XỬ LÝ TẢI VÀ GIẢI MÃ ẢNH MÀN HÌNH (CHUẨN GIAO DIỆN ZALO)
     ========================================================= */
@@ -1153,8 +1245,9 @@ function sendAlertToZalo(level, message, advice) {
                                 <button class="speak-btn" onclick="speakText('${encodedReply}')">
                                     <i class="fa-solid fa-volume-high"></i> Nghe lời khuyên
                                 </button>
-                                <button class="speak-btn" style="background:#DC2626;" onclick="sendAlertToZalo('RED', '[Ảnh màn hình]', '${(data.reply || '').replace(/'/g, "\\'").replace(/\n/g, ' ')}')">
-                                    <i class="fa-solid fa-paper-plane"></i> Báo con cháu qua Zalo
+                                <button class="speak-btn" style="background:#DC2626;"
+                                    onclick="sendAlertBySms('RED', '${encodedReply.replace(/'/g, "%27")}')">
+                                    <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua SMS
                                 </button>
                             </div>
                         </div>
@@ -1170,6 +1263,10 @@ function sendAlertToZalo(level, message, advice) {
                             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
                                 <button class="speak-btn" onclick="speakText('${encodedReply}')">
                                     <i class="fa-solid fa-volume-high"></i> Nghe lời khuyên
+                                </button>
+                                <button class="speak-btn" style="background:#C2410C;"
+                                    onclick="sendAlertBySms('ORANGE', '${encodedReply.replace(/'/g, "%27")}')">
+                                    <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua SMS
                                 </button>
                             </div>
                         </div>
