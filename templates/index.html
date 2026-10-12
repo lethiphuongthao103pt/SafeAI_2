@@ -847,7 +847,7 @@
                          <button class="speak-btn"
                             style="background:#DC2626;"
                             onclick="sendAlertBySms('RED', '${encodedReply.replace(/'/g, "%27")}')">
-                            <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua SMS
+                            <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua zalo
                         </button>
                     </div>
                 `;
@@ -864,7 +864,7 @@
                         </button>
                         <button class="speak-btn" style="background:#C2410C;"
                             onclick="sendAlertBySms('ORANGE', '${encodedReply.replace(/'/g, "%27")}')">
-                            <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua SMS
+                            <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua zalo
                         </button>
                     </div>
                 `;
@@ -1176,48 +1176,65 @@ function sendAlertToZalo(level, message, advice) {
     }
 }
 
-/* 6.2. MỞ HỘP THOẠI SMS VỚI NGƯỜI NHẬN VÀ NỘI DUNG ĐÃ SOẠN */
-function sendAlertBySms(level, encodedAdvice) {
+
+
+/* GỬI CẢNH BÁO CHO NGƯỜI THÂN QUA ZALO
+   Hỗ trợ laptop và điện thoại */
+
+async function sendAlertBySms(level, encodedAdvice) {
     const normalizedLevel = String(level || "").toUpperCase();
-    if (normalizedLevel !== "RED" && normalizedLevel !== "ORANGE") return;
+
+    if (normalizedLevel !== "RED" && normalizedLevel !== "ORANGE") {
+        return;
+    }
 
     const accountPhone = localStorage.getItem("user_phone");
+
     if (!accountPhone) {
         alert("Cụ vui lòng đăng nhập trước nhé!");
         return;
     }
 
-    const rawPhone1 = localStorage.getItem("sos_phone1_" + accountPhone) || "";
-    const rawPhone2 = localStorage.getItem("sos_phone2_" + accountPhone) || "";
-
-    const normalizePhone = (value) => {
-        let phone = String(value || "").replace(/\D/g, "");
-        if (phone.startsWith("84")) phone = "0" + phone.slice(2);
-        return phone;
-    };
-
-    const phone1 = normalizePhone(rawPhone1);
-    const phone2 = normalizePhone(rawPhone2);
+    // Lấy số điện thoại người thân trong Hồ sơ
+    const phone1 =
+        localStorage.getItem("sos_phone1_" + accountPhone) || "";
+    const phone2 =
+        localStorage.getItem("sos_phone2_" + accountPhone) || "";
 
     if (!phone1 && !phone2) {
         alert("Cụ vui lòng vào Hồ sơ để đăng ký số điện thoại người thân.");
         return;
     }
 
+    // Chọn người thân nhận cảnh báo
     let phone = phone1 || phone2;
+
     if (phone1 && phone2) {
         const choice = prompt(
-            "BÁO CHO CON CHÁU QUA SMS\n\n" +
+            "BÁO CẢNH BÁO QUA ZALO\n\n" +
             "Nhập 1 → Người thân 1\n" +
             "Nhập 2 → Người thân 2"
         );
 
-        if (choice === "1") phone = phone1;
-        else if (choice === "2") phone = phone2;
-        else return;
+        if (choice === "1") {
+            phone = phone1;
+        } else if (choice === "2") {
+            phone = phone2;
+        } else {
+            return;
+        }
     }
 
+    // Chuẩn hóa số điện thoại
+    let cleanPhone = phone.replace(/\D/g, "");
+
+    if (cleanPhone.startsWith("84")) {
+        cleanPhone = "0" + cleanPhone.slice(2);
+    }
+
+    // Giải mã lời khuyên từ SafeAI
     let advice = "";
+
     try {
         advice = decodeURIComponent(encodedAdvice || "");
     } catch (e) {
@@ -1230,75 +1247,86 @@ function sendAlertBySms(level, encodedAdvice) {
         .replace(/[\*_#`~]/g, "")
         .replace(/\s+/g, " ")
         .trim()
-        .slice(0, 300);
+        .slice(0, 500);
 
+    // Soạn tin nhắn cảnh báo
     let content;
+
     if (normalizedLevel === "RED") {
         content =
-            "Con ơi, SafeAI cảnh báo tin nhắn vừa kiểm tra có nguy cơ LỪA ĐẢO CAO. " +
-            (advice ? "Nhận xét của SafeAI: " + advice + " " : "") +
-            "Con gọi cho mẹ/ba để hỗ trợ xác minh nhé. Mẹ/ba chưa bấm link, chưa chuyển tiền và chưa cung cấp OTP/mật khẩu.";
+            "🚨 SAFEAI - CẢNH BÁO NGUY HIỂM\n\n" +
+            "Cụ vừa kiểm tra một tin nhắn có dấu hiệu lừa đảo nguy hiểm.\n\n" +
+            "Nhận xét của SafeAI: " + advice + "\n\n" +
+            "Con vui lòng gọi cho cụ để hỗ trợ xác minh. " +
+            "Tạm thời không bấm link, không chuyển tiền, " +
+            "không cung cấp OTP hoặc mật khẩu.";
     } else {
         content =
-            "Con ơi, SafeAI đánh giá tin nhắn vừa kiểm tra là ĐÁNG NGỜ, cần xác minh thêm. " +
-            (advice ? "Nhận xét của SafeAI: " + advice + " " : "") +
-            "Con kiểm tra giúp mẹ/ba nhé. Tạm thời mẹ/ba chưa bấm link, chuyển tiền hay cung cấp thông tin cá nhân.";
+            "⚠️ SAFEAI - CẢNH BÁO ĐÁNG NGỜ\n\n" +
+            "Cụ vừa kiểm tra một tin nhắn cần xác minh thêm.\n\n" +
+            "Nhận xét của SafeAI: " + advice + "\n\n" +
+            "Con vui lòng hỗ trợ cụ kiểm tra nguồn gửi. " +
+            "Tạm thời không bấm link hoặc chuyển tiền khi chưa xác minh.";
     }
 
-    // Chrome tren may tinh thuong khong co ung dung SMS xu ly duoc duong dan sms:.
-    // Vi vay, tren may tinh: sao chep noi dung va huong dan nguoi dung gui thu cong.
-    const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    const isMobile =
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    if (!isMobileDevice) {
-        if (!confirm(
-            "SafeAI đã soạn tin nhắn cho người thân.\n\n" +
-            "Máy tính này không mở được ứng dụng SMS trực tiếp.\n" +
-            "Nhấn OK để sao chép nội dung tin nhắn; sau đó bạn có thể dán vào ứng dụng nhắn tin đang dùng.\n\n" +
-            "Số người nhận: " + phone
-        )) {
-            return;
-        }
-
-        const showDesktopFallback = () => {
-            prompt(
-                "Nội dung đã soạn cho người thân. Số người nhận: " + phone +
-                "\n\nHãy sao chép nội dung bên dưới nếu chưa được tự động sao chép, rồi dán vào ứng dụng nhắn tin:",
-                content
-            );
-        };
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(content)
-                .then(() => {
-                    alert(
-                        "Đã sao chép nội dung tin nhắn!\n\n" +
-                        "Số người nhận: " + phone + "\n\n" +
-                        "Bây giờ hãy mở ứng dụng nhắn tin bạn đang dùng, chọn người thân có số này, dán nội dung và nhấn Gửi."
-                    );
-                })
-                .catch(showDesktopFallback);
-        } else {
-            showDesktopFallback();
-        }
-        return;
-    }
+    // Điện thoại: thử mở hồ sơ Zalo của người thân.
+    // Laptop: mở Zalo Web để tìm người thân.
+    const zaloUrl = isMobile
+        ? "https://zalo.me/" + cleanPhone
+        : "https://chat.zalo.me/";
 
     if (!confirm(
-        "SafeAI đã soạn tin nhắn cho người thân.\n\n" +
-        "Điện thoại sẽ mở ứng dụng Tin nhắn với số điện thoại và nội dung điền sẵn.\n" +
-        "Cụ kiểm tra rồi nhấn Gửi. Tiếp tục?"
+        "SAFEAI CHUẨN BỊ MỞ ZALO\n\n" +
+        "Người nhận: " + cleanPhone + "\n\n" +
+        "SafeAI sẽ chuẩn bị nội dung cảnh báo để cụ gửi.\n" +
+        "Cụ cần kiểm tra đúng người nhận và tự bấm Gửi.\n\n" +
+        "Nhấn OK để tiếp tục."
     )) {
         return;
     }
 
-    // iOS thường dùng &body=; Android thường dùng ?body=.
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    const smsUrl = isIOS
-        ? "sms:" + phone + "&body=" + encodeURIComponent(content)
-        : "sms:" + phone + "?body=" + encodeURIComponent(content);
+    // Mở Zalo ngay sau khi cụ xác nhận để giảm nguy cơ bị chặn cửa sổ
+    const zaloWindow = window.open(zaloUrl, "_blank");
 
-    window.location.href = smsUrl;
+    // Sao chép nội dung cảnh báo
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(content);
+
+            alert(
+                "Đã sao chép nội dung cảnh báo!\n\n" +
+                (isMobile
+                    ? "1. Chuyển sang Zalo vừa mở.\n" +
+                      "2. Kiểm tra đúng người thân.\n" +
+                      "3. Dán nội dung vào khung chat.\n" +
+                      "4. Kiểm tra rồi bấm Gửi."
+                    : "1. Chuyển sang tab Zalo Web.\n" +
+                      "2. Tìm người thân bằng số: " + cleanPhone + "\n" +
+                      "3. Mở khung chat và nhấn Ctrl + V.\n" +
+                      "4. Kiểm tra rồi bấm Gửi.")
+            );
+        } else {
+            prompt(
+                "Cụ hãy sao chép nội dung dưới đây rồi dán vào Zalo:",
+                content
+            );
+        }
+    } catch (error) {
+        prompt(
+            "Chưa sao chép tự động được. Cụ hãy sao chép nội dung dưới đây rồi dán vào Zalo:",
+            content
+        );
+    }
+
+    if (!zaloWindow) {
+        alert(
+            "Trình duyệt có thể đã chặn việc mở Zalo.\n" +
+            "Cụ hãy cho phép cửa sổ bật lên hoặc tự mở ứng dụng Zalo."
+        );
+    }
 }
 
     /* =========================================================
@@ -1377,7 +1405,7 @@ function sendAlertBySms(level, encodedAdvice) {
                                 </button>
                                 <button class="speak-btn" style="background:#DC2626;"
                                     onclick="sendAlertBySms('RED', '${encodedReply.replace(/'/g, "%27")}')">
-                                    <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua SMS
+                                    <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua zalo
                                 </button>
                             </div>
                         </div>
@@ -1396,7 +1424,8 @@ function sendAlertBySms(level, encodedAdvice) {
                                 </button>
                                 <button class="speak-btn" style="background:#C2410C;"
                                     onclick="sendAlertBySms('ORANGE', '${encodedReply.replace(/'/g, "%27")}')">
-                                    <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua SMS
+                                    <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua zalo
+
                                 </button>
                             </div>
                         </div>
