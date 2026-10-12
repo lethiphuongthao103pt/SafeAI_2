@@ -698,20 +698,49 @@
         }
     });
 
-    /* 3. ĐỌC TIẾNG VIỆT TỐI ƯU */
+    /* 3. ĐỌC TIẾNG VIỆT TỐI ƯU - CÓ PHƯƠNG ÁN DỰ PHÒNG CHO ĐIỆN THOẠI */
     let currentAudio = null;
+    let speechFallbackTimer = null;
+
+    function speakWithBrowser(cleanText) {
+        if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+            alert('Điện thoại chưa hỗ trợ đọc văn bản. Cụ vui lòng thử mở SafeAI bằng Chrome hoặc Safari mới nhất.');
+            return;
+        }
+
+        try {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = 'vi-VN';
+            utterance.rate = 0.85;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+
+            // Chọn giọng tiếng Việt nếu thiết bị có cài đặt sẵn.
+            const voices = window.speechSynthesis.getVoices();
+            const vietnameseVoice = voices.find(v => /^vi([_-]|$)/i.test(v.lang));
+            if (vietnameseVoice) utterance.voice = vietnameseVoice;
+
+            utterance.onerror = function (event) {
+                console.warn('Trình đọc của trình duyệt không phát được:', event.error);
+            };
+            window.speechSynthesis.speak(utterance);
+        } catch (error) {
+            console.error('Không thể khởi động giọng đọc dự phòng:', error);
+            alert('Chưa phát được giọng đọc. Cụ vui lòng thử nhấn nút loa thêm một lần nữa.');
+        }
+    }
 
     function speakText(inputData) {
         let text = inputData;
-
         try {
             text = decodeURIComponent(inputData);
         } catch (e) {
             text = inputData;
         }
 
-        const cleanText = text
-            .replace(/<br\s*\/?>/gi, '. ')
+        const cleanText = String(text || '')
+            .replace(/<br\s*\/?\s*>/gi, '. ')
             .replace(/<[^>]*>/g, '')
             .replace(/[*#_~`]/g, '')
             .replace(/\s+/g, ' ')
@@ -719,38 +748,62 @@
 
         if (!cleanText) return;
 
+        if (speechFallbackTimer) {
+            clearTimeout(speechFallbackTimer);
+            speechFallbackTimer = null;
+        }
         if (currentAudio) {
             currentAudio.pause();
             currentAudio = null;
         }
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
-        if (typeof responsiveVoice !== 'undefined') {
-            responsiveVoice.cancel();
-            responsiveVoice.speak(cleanText, "Vietnamese Female", {
-                rate: 0.85,
-                pitch: 1,
-                volume: 1
-            });
-            return;
+        // Thử ResponsiveVoice trước. Nếu không báo bắt đầu phát, chuyển sang dự phòng.
+        if (typeof responsiveVoice !== 'undefined' && typeof responsiveVoice.speak === 'function') {
+            let started = false;
+            try {
+                if (typeof responsiveVoice.cancel === 'function') responsiveVoice.cancel();
+                responsiveVoice.speak(cleanText, 'Vietnamese Female', {
+                    rate: 0.85,
+                    pitch: 1,
+                    volume: 1,
+                    onstart: function () {
+                        started = true;
+                        if (speechFallbackTimer) {
+                            clearTimeout(speechFallbackTimer);
+                            speechFallbackTimer = null;
+                        }
+                    },
+                    onend: function () {
+                        if (speechFallbackTimer) {
+                            clearTimeout(speechFallbackTimer);
+                            speechFallbackTimer = null;
+                        }
+                    },
+                    onerror: function () {
+                        if (speechFallbackTimer) {
+                            clearTimeout(speechFallbackTimer);
+                            speechFallbackTimer = null;
+                        }
+                        if (!started) speakWithBrowser(cleanText);
+                    }
+                });
+
+                speechFallbackTimer = setTimeout(function () {
+                    speechFallbackTimer = null;
+                    if (!started) {
+                        try { responsiveVoice.cancel(); } catch (e) {}
+                        speakWithBrowser(cleanText);
+                    }
+                }, 2200);
+                return;
+            } catch (error) {
+                console.warn('ResponsiveVoice lỗi, chuyển sang giọng đọc của trình duyệt:', error);
+            }
         }
 
-        const shortText = cleanText.substring(0, 200);
-        const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(shortText)}&tl=vi&client=tw-ob`;
-
-        currentAudio = new Audio(ttsUrl);
-        currentAudio.playbackRate = 0.85;
-
-        currentAudio.play().catch(error => {
-            console.warn("Chuyển sang Web Speech API:", error);
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(cleanText);
-                utterance.lang = 'vi-VN';
-                utterance.rate = 0.8;
-                utterance.pitch = 1.1;
-                window.speechSynthesis.speak(utterance);
-            }
-        });
+        // Nếu thư viện ngoài không tải được, dùng giọng đọc sẵn có của điện thoại.
+        speakWithBrowser(cleanText);
     }
 
     /* 4. GỬI TIN NHẮN (KIỂM TRA BẰNG VĂN BẢN/GIỌNG NÓI ĐÃ CHUYỂN THÀNH CHỮ) */
@@ -1153,9 +1206,47 @@ function sendAlertBySms(level, encodedAdvice) {
             "Con kiểm tra giúp mẹ/ba nhé. Tạm thời mẹ/ba chưa bấm link, chuyển tiền hay cung cấp thông tin cá nhân.";
     }
 
+    // Chrome tren may tinh thuong khong co ung dung SMS xu ly duoc duong dan sms:.
+    // Vi vay, tren may tinh: sao chep noi dung va huong dan nguoi dung gui thu cong.
+    const isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+    if (!isMobileDevice) {
+        if (!confirm(
+            "SafeAI đã soạn tin nhắn cho người thân.\n\n" +
+            "Máy tính này không mở được ứng dụng SMS trực tiếp.\n" +
+            "Nhấn OK để sao chép nội dung tin nhắn; sau đó bạn có thể dán vào ứng dụng nhắn tin đang dùng.\n\n" +
+            "Số người nhận: " + phone
+        )) {
+            return;
+        }
+
+        const showDesktopFallback = () => {
+            prompt(
+                "Nội dung đã soạn cho người thân. Số người nhận: " + phone +
+                "\n\nHãy sao chép nội dung bên dưới nếu chưa được tự động sao chép, rồi dán vào ứng dụng nhắn tin:",
+                content
+            );
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(content)
+                .then(() => {
+                    alert(
+                        "Đã sao chép nội dung tin nhắn!\n\n" +
+                        "Số người nhận: " + phone + "\n\n" +
+                        "Bây giờ hãy mở ứng dụng nhắn tin bạn đang dùng, chọn người thân có số này, dán nội dung và nhấn Gửi."
+                    );
+                })
+                .catch(showDesktopFallback);
+        } else {
+            showDesktopFallback();
+        }
+        return;
+    }
+
     if (!confirm(
         "SafeAI đã soạn tin nhắn cho người thân.\n\n" +
-        "Ứng dụng Tin nhắn sẽ mở với số điện thoại và nội dung điền sẵn.\n" +
+        "Điện thoại sẽ mở ứng dụng Tin nhắn với số điện thoại và nội dung điền sẵn.\n" +
         "Cụ kiểm tra rồi nhấn Gửi. Tiếp tục?"
     )) {
         return;
