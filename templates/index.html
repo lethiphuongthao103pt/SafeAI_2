@@ -902,104 +902,158 @@
         chatBody.scrollTop = chatBody.scrollHeight;
     }
 
-    /* 5. NHẬN DẠNG GIỌNG NÓI - TRÁNH NHẬP LẶP TRÊN ĐIỆN THOẠI */
-    let recognition = null;
-    let isRecording = false;
-    let finalTranscript = '';
+/* 5. NHẬN DẠNG GIỌNG NÓI - HIỆN CHỮ NGAY KHI CỤ ĐANG NÓI */
 
-    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
+let recognition = null;
+let isRecording = false;
 
-        recognition.lang = 'vi-VN';
-        // Trên điện thoại, mỗi lần nhấn mic ghi một lượt; không tự khởi động lại gây lặp chữ.
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
+let baseTranscript = "";
+let finalTranscript = "";
+let interimTranscript = "";
 
-        recognition.onstart = function () {
-            finalTranscript = '';
-        };
+const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
 
-        recognition.onresult = function (event) {
-            const userInput = document.getElementById('userInput');
-            if (!userInput || !event.results) return;
+if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
 
-            // Chỉ lấy kết quả cuối cùng của lượt nhận dạng hiện tại, không cộng lại toàn bộ lịch sử.
-            let transcript = '';
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                const result = event.results[i];
-                if (result && result.isFinal && result[0]) {
-                    transcript += result[0].transcript;
-                }
-            }
+    recognition.lang = "vi-VN";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
 
-            if (transcript.trim()) {
-                finalTranscript = (finalTranscript + ' ' + transcript).trim();
-                userInput.value = finalTranscript;
-            }
-        };
+    recognition.onstart = function () {
+        isRecording = true;
 
-        recognition.onerror = function (event) {
-            console.error("Lỗi micro:", event.error);
-            if (event.error === 'not-allowed') {
-                alert("⚠️ Cụ vui lòng cấp quyền cho phép ứng dụng sử dụng Micro.");
-            } else if (event.error === 'language-not-supported') {
-                alert("Điện thoại/trình duyệt chưa hỗ trợ nhận dạng tiếng Việt. Cụ vui lòng thử Chrome mới nhất.");
-            }
-            stopRecordingState();
-        };
-
-        recognition.onend = function () {
-            // Không tự start() lại vì một số điện thoại sẽ lặp lại kết quả đã nhận dạng.
-            stopRecordingState();
-        };
-    }
-
-    function toggleVoiceInput() {
-        if (!recognition) {
-            alert("⚠️ Trình duyệt chưa hỗ trợ thu âm trực tiếp. Cụ có thể gõ chữ vào ô để kiểm tra nhé!");
-            return;
-        }
-
-        const userInput = document.getElementById('userInput');
-        const micBtn = document.getElementById('micBtn');
-
-        if (isRecording) {
-            isRecording = false;
-            try { recognition.stop(); } catch (e) {}
-            stopRecordingState();
-        } else {
-            try {
-                userInput.value = '';
-                finalTranscript = '';
-                userInput.placeholder = '🎙️ Đang nghe cụ nói... Cụ cứ nói tự nhiên nhé!';
-
-                isRecording = true;
-                if (micBtn) micBtn.classList.add('recording');
-
-                recognition.start();
-            } catch (err) {
-                console.error(err);
-                stopRecordingState();
-                alert('Chưa bật được micro. Cụ vui lòng nhấn lại nút micro và cho phép sử dụng micro nếu được hỏi.');
-            }
-        }
-    }
-
-    function stopRecordingState() {
-        isRecording = false;
-        const userInput = document.getElementById('userInput');
-        const micBtn = document.getElementById('micBtn');
-
-        if (userInput) {
-            userInput.placeholder = 'Nhập hoặc nhấn mic để nói...';
-        }
+        const micBtn = document.getElementById("micBtn");
+        const userInput = document.getElementById("userInput");
 
         if (micBtn) {
-            micBtn.classList.remove('recording');
+            micBtn.classList.add("recording");
         }
+
+        if (userInput) {
+            userInput.placeholder = "🎙️ Cụ cứ nói, chữ sẽ hiện dần...";
+        }
+    };
+
+    recognition.onresult = function (event) {
+        const userInput = document.getElementById("userInput");
+        if (!userInput || !event.results) return;
+
+        // Tạo lại nội dung từ kết quả hiện có để tránh lặp chữ.
+        finalTranscript = "";
+        interimTranscript = "";
+
+        for (let i = 0; i < event.results.length; i++) {
+            const result = event.results[i];
+
+            if (!result || !result[0]) continue;
+
+            const words = result[0].transcript;
+
+            if (result.isFinal) {
+                finalTranscript += words;
+            } else {
+                interimTranscript += words;
+            }
+        }
+
+        // Giữ nguyên phần văn bản đã có trước khi bật mic.
+        const spokenText =
+            [finalTranscript, interimTranscript]
+                .filter(part => part.trim())
+                .join(" ");
+
+        userInput.value = baseTranscript
+            ? baseTranscript + (spokenText ? " " + spokenText : "")
+            : spokenText;
+
+        // Cập nhật giao diện ngay khi có kết quả tạm thời.
+        userInput.dispatchEvent(
+            new Event("input", { bubbles: true })
+        );
+
+        userInput.scrollTop = userInput.scrollHeight;
+
+        const chatBody = document.getElementById("chatBody");
+        if (chatBody) {
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+    };
+
+    recognition.onerror = function (event) {
+        console.error("Lỗi nhận diện giọng nói:", event.error);
+
+        if (event.error === "not-allowed" ||
+            event.error === "service-not-allowed") {
+            alert("Cụ vui lòng cho phép Chrome sử dụng micro.");
+        } else if (event.error === "language-not-supported") {
+            alert("Trình duyệt hoặc thiết bị chưa hỗ trợ nhận diện tiếng Việt.");
+        } else if (event.error === "network") {
+            alert("Không kết nối được dịch vụ nhận diện giọng nói. Cụ kiểm tra mạng rồi thử lại.");
+        }
+
+        // Không xóa phần chữ đã nhận được.
+        stopRecordingState();
+    };
+
+    recognition.onend = function () {
+        // Giữ lại toàn bộ nội dung đã hiện trong ô nhập.
+        stopRecordingState();
+    };
+}
+
+function toggleVoiceInput() {
+    if (!recognition) {
+        alert(
+            "Trình duyệt chưa hỗ trợ nhận diện giọng nói. " +
+            "Cụ hãy mở SafeAI bằng Chrome mới nhất hoặc nhập nội dung bằng bàn phím."
+        );
+        return;
     }
+
+    const userInput = document.getElementById("userInput");
+
+    if (isRecording) {
+        try {
+            recognition.stop();
+        } catch (error) {
+            console.warn("Không dừng được mic:", error);
+        }
+
+        stopRecordingState();
+        return;
+    }
+
+    // Lưu nội dung đã nhập để không bị mất khi bật mic.
+    baseTranscript = userInput ? userInput.value.trim() : "";
+    finalTranscript = "";
+    interimTranscript = "";
+
+    try {
+        recognition.start();
+    } catch (error) {
+        console.warn("Không bật được mic:", error);
+        stopRecordingState();
+        alert("Chưa bật được micro. Cụ vui lòng chờ một chút rồi thử lại.");
+    }
+}
+
+function stopRecordingState() {
+    isRecording = false;
+
+    const userInput = document.getElementById("userInput");
+    const micBtn = document.getElementById("micBtn");
+
+    if (userInput) {
+        userInput.placeholder = "Nhập hoặc nhấn mic để nói...";
+    }
+
+    if (micBtn) {
+        micBtn.classList.remove("recording");
+    }
+}
 
 /* 6. BÁO ĐỘNG SOS */
 function triggerSOS() {
