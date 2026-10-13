@@ -704,24 +704,52 @@
 let currentUtterance = null;
 let speechStartTimer = null;
 
+
 function speakText(inputData) {
     let text = String(inputData || "");
 
-    // Giải mã nội dung nếu được truyền vào dưới dạng encodeURIComponent.
+    // Giải mã nội dung nếu được truyền dưới dạng URL-encoded.
     try {
         text = decodeURIComponent(text);
-    } catch (e) {
-        // Nếu không phải chuỗi đã mã hóa thì giữ nguyên.
-    }
+    } catch (e) {}
 
-    const cleanText = text
-        .replace(/<br\s*\/?\s*>/gi, ". ")
-        .replace(/<[^>]*>/g, "")
-        .replace(/[*#_~`]/g, "")
+    // Loại bỏ HTML và chuyển các thẻ xuống dòng thành dấu ngắt câu.
+    text = text
+        .replace(/<br\s*\/?>/gi, ". ")
+        .replace(/<\/(p|div|li|h[1-6])>/gi, ". ")
+        .replace(/<[^>]*>/g, " ");
+
+    // Loại bỏ đường dẫn URL để không đọc từng ký tự trong đường link.
+    text = text.replace(/\bhttps?:\/\/\S+/gi, " đường liên kết ");
+
+    // Chuyển một số ký hiệu tiền tệ thành lời nói tự nhiên.
+    text = text
+        .replace(/₫|đồng Việt Nam/gi, " đồng ")
+        .replace(/\bVND\b/gi, " đồng ")
+        .replace(/\bVNĐ\b/gi, " đồng ")
+        .replace(/\bUSD\b/gi, " đô la Mỹ ");
+
+    // Không đọc mã định dạng Markdown và các dấu trang trí.
+    text = text
+        .replace(/```[\s\S]*?```/g, " ")
+        .replace(/[*#_~`]/g, " ")
+        .replace(/^\s*[-•]+\s*/gm, "")
+        .replace(/[🔴🟠🟢🔔⚠️🚨✅❌📱💰🔒🔗📩📞👉]/gu, " ");
+
+    // Không đọc dấu gạch chéo, gạch đứng và các ký hiệu trang trí.
+    text = text.replace(/[\/\\|]+/g, " ");
+    text = text.replace(/[_=<>^~]+/g, " ");
+
+    // Chuẩn hóa dấu câu, khoảng trắng.
+    text = text
+        .replace(/([,;:])\s*/g, "$1 ")
+        .replace(/\.{2,}/g, ". ")
+        .replace(/\s+([,.!?;:])/g, "$1")
+        .replace(/([!?]){2,}/g, "$1")
         .replace(/\s+/g, " ")
         .trim();
 
-    if (!cleanText) return;
+    if (!text) return;
 
     if (!("speechSynthesis" in window) ||
         typeof SpeechSynthesisUtterance === "undefined") {
@@ -729,7 +757,6 @@ function speakText(inputData) {
         return;
     }
 
-    // Hủy lịch đọc đang chờ và lượt đọc trước.
     if (speechStartTimer) {
         clearTimeout(speechStartTimer);
         speechStartTimer = null;
@@ -738,7 +765,6 @@ function speakText(inputData) {
     window.speechSynthesis.cancel();
     currentUtterance = null;
 
-    // Chờ trình duyệt dừng lượt đọc cũ rồi mới bắt đầu lượt mới.
     speechStartTimer = setTimeout(function () {
         speechStartTimer = null;
 
@@ -756,7 +782,7 @@ function speakText(inputData) {
             return;
         }
 
-        const utterance = new SpeechSynthesisUtterance(cleanText);
+        const utterance = new SpeechSynthesisUtterance(text);
         currentUtterance = utterance;
 
         utterance.voice = vietnameseVoice;
@@ -785,6 +811,7 @@ function speakText(inputData) {
         window.speechSynthesis.speak(utterance);
     }, 180);
 }
+
 
     /* 4. GỬI TIN NHẮN (KIỂM TRA BẰNG VĂN BẢN/GIỌNG NÓI ĐÃ CHUYỂN THÀNH CHỮ) */
     async function sendMessage() {
