@@ -698,93 +698,93 @@
         }
     });
 
-    /* 3. ĐỌC TIẾNG VIỆT TỐI ƯU - CÓ PHƯƠNG ÁN DỰ PHÒNG CHO ĐIỆN THOẠI */
-    let currentAudio = null;
-    let speechFallbackTimer = null;
+    
+/* 3. ĐỌC TIẾNG VIỆT - HẠN CHẾ LẶP GIỌNG TRÊN ĐIỆN THOẠI */
 
-    function speakWithBrowser(cleanText, attempt = 0) {
-        if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
-            alert('Điện thoại chưa hỗ trợ đọc văn bản. Cụ vui lòng thử mở SafeAI bằng Chrome hoặc Safari mới nhất.');
+let currentUtterance = null;
+let speechStartTimer = null;
+
+function speakText(inputData) {
+    let text = String(inputData || "");
+
+    // Giải mã nội dung nếu được truyền vào dưới dạng encodeURIComponent.
+    try {
+        text = decodeURIComponent(text);
+    } catch (e) {
+        // Nếu không phải chuỗi đã mã hóa thì giữ nguyên.
+    }
+
+    const cleanText = text
+        .replace(/<br\s*\/?\s*>/gi, ". ")
+        .replace(/<[^>]*>/g, "")
+        .replace(/[*#_~`]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (!cleanText) return;
+
+    if (!("speechSynthesis" in window) ||
+        typeof SpeechSynthesisUtterance === "undefined") {
+        alert("Điện thoại chưa hỗ trợ đọc văn bản. Cụ vui lòng mở SafeAI bằng Chrome mới nhất.");
+        return;
+    }
+
+    // Hủy lịch đọc đang chờ và lượt đọc trước.
+    if (speechStartTimer) {
+        clearTimeout(speechStartTimer);
+        speechStartTimer = null;
+    }
+
+    window.speechSynthesis.cancel();
+    currentUtterance = null;
+
+    // Chờ trình duyệt dừng lượt đọc cũ rồi mới bắt đầu lượt mới.
+    speechStartTimer = setTimeout(function () {
+        speechStartTimer = null;
+
+        const voices = window.speechSynthesis.getVoices();
+        const vietnameseVoice = voices.find(function (voice) {
+            return /^vi([_-]|$)/i.test(voice.lang);
+        });
+
+        if (!vietnameseVoice) {
+            alert(
+                "Điện thoại chưa có giọng đọc tiếng Việt. " +
+                "Cụ hãy vào Cài đặt > Đọc văn bản (Text-to-speech), " +
+                "tải giọng tiếng Việt rồi thử lại."
+            );
             return;
         }
 
-        try {
-            window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        currentUtterance = utterance;
 
-            const voices = window.speechSynthesis.getVoices();
-            const vietnameseVoice = voices.find(v => /^vi([_-]|$)/i.test(v.lang));
+        utterance.voice = vietnameseVoice;
+        utterance.lang = vietnameseVoice.lang || "vi-VN";
+        utterance.rate = 0.85;
+        utterance.pitch = 1;
+        utterance.volume = 1;
 
-            // Một số điện thoại tải danh sách giọng đọc chậm; chờ thử vài lần trước khi báo lỗi.
-            if (!vietnameseVoice && voices.length === 0 && attempt < 5) {
-                setTimeout(() => speakWithBrowser(cleanText, attempt + 1), 300);
-                return;
+        utterance.onend = function () {
+            if (currentUtterance === utterance) {
+                currentUtterance = null;
+            }
+        };
+
+        utterance.onerror = function (event) {
+            if (currentUtterance === utterance) {
+                currentUtterance = null;
             }
 
-            // Không dùng giọng mặc định nếu đó là tiếng Anh hoặc ngôn ngữ khác.
-            if (!vietnameseVoice) {
-                alert('Điện thoại chưa có giọng đọc tiếng Việt. Cụ hãy vào Cài đặt > Ngôn ngữ/Đọc văn bản (Text-to-speech), tải giọng tiếng Việt rồi thử lại.');
-                return;
+            if (event.error !== "canceled" &&
+                event.error !== "interrupted") {
+                console.warn("Lỗi đọc văn bản:", event.error);
             }
+        };
 
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.lang = vietnameseVoice.lang || 'vi-VN';
-            utterance.voice = vietnameseVoice;
-            utterance.rate = 0.85;
-            utterance.pitch = 1;
-            utterance.volume = 1;
-
-            utterance.onerror = function (event) {
-                console.warn('Trình đọc tiếng Việt không phát được:', event.error);
-                if (event.error !== 'canceled' && event.error !== 'interrupted') {
-                    alert('Chưa phát được giọng đọc tiếng Việt. Cụ vui lòng kiểm tra cài đặt giọng đọc của điện thoại.');
-                }
-            };
-            window.speechSynthesis.speak(utterance);
-        } catch (error) {
-            console.error('Không thể khởi động giọng đọc dự phòng:', error);
-            alert('Chưa phát được giọng đọc. Cụ vui lòng thử nhấn nút loa thêm một lần nữa.');
-        }
-    }
-
-    function speakText(inputData) {
-        let text = inputData;
-        try {
-            text = decodeURIComponent(inputData);
-        } catch (e) {
-            text = inputData;
-        }
-
-        const cleanText = String(text || '')
-            .replace(/<br\s*\/?\s*>/gi, '. ')
-            .replace(/<[^>]*>/g, '')
-            .replace(/[*#_~`]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        if (!cleanText) return;
-
-        if (speechFallbackTimer) {
-            clearTimeout(speechFallbackTimer);
-            speechFallbackTimer = null;
-        }
-        if (currentAudio) {
-            currentAudio.pause();
-            currentAudio = null;
-        }
-
-        // Hủy lượt đọc cũ ở cả hai bộ đọc, sau đó dùng giọng tiếng Việt của điện thoại.
-        // Không gọi ResponsiveVoice ở đây vì trên một số máy nó có thể phát nhầm giọng tiếng Anh.
-        try {
-            if (typeof responsiveVoice !== 'undefined' && typeof responsiveVoice.cancel === 'function') {
-                responsiveVoice.cancel();
-            }
-        } catch (e) {}
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-        }
-
-        speakWithBrowser(cleanText);
-    }
+        window.speechSynthesis.speak(utterance);
+    }, 180);
+}
 
     /* 4. GỬI TIN NHẮN (KIỂM TRA BẰNG VĂN BẢN/GIỌNG NÓI ĐÃ CHUYỂN THÀNH CHỮ) */
     async function sendMessage() {
