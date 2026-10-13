@@ -698,60 +698,93 @@
         }
     });
 
-    /* 3. ĐỌC TIẾNG VIỆT TỐI ƯU */
-    let currentAudio = null;
+    
+/* 3. ĐỌC TIẾNG VIỆT - HẠN CHẾ LẶP GIỌNG TRÊN ĐIỆN THOẠI */
 
-    function speakText(inputData) {
-        let text = inputData;
+let currentUtterance = null;
+let speechStartTimer = null;
 
-        try {
-            text = decodeURIComponent(inputData);
-        } catch (e) {
-            text = inputData;
-        }
+function speakText(inputData) {
+    let text = String(inputData || "");
 
-        const cleanText = text
-            .replace(/<br\s*\/?>/gi, '. ')
-            .replace(/<[^>]*>/g, '')
-            .replace(/[*#_~`]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
+    // Giải mã nội dung nếu được truyền vào dưới dạng encodeURIComponent.
+    try {
+        text = decodeURIComponent(text);
+    } catch (e) {
+        // Nếu không phải chuỗi đã mã hóa thì giữ nguyên.
+    }
 
-        if (!cleanText) return;
+    const cleanText = text
+        .replace(/<br\s*\/?\s*>/gi, ". ")
+        .replace(/<[^>]*>/g, "")
+        .replace(/[*#_~`]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
 
-        if (currentAudio) {
-            currentAudio.pause();
-            currentAudio = null;
-        }
+    if (!cleanText) return;
 
-        if (typeof responsiveVoice !== 'undefined') {
-            responsiveVoice.cancel();
-            responsiveVoice.speak(cleanText, "Vietnamese Female", {
-                rate: 0.85,
-                pitch: 1,
-                volume: 1
-            });
+    if (!("speechSynthesis" in window) ||
+        typeof SpeechSynthesisUtterance === "undefined") {
+        alert("Điện thoại chưa hỗ trợ đọc văn bản. Cụ vui lòng mở SafeAI bằng Chrome mới nhất.");
+        return;
+    }
+
+    // Hủy lịch đọc đang chờ và lượt đọc trước.
+    if (speechStartTimer) {
+        clearTimeout(speechStartTimer);
+        speechStartTimer = null;
+    }
+
+    window.speechSynthesis.cancel();
+    currentUtterance = null;
+
+    // Chờ trình duyệt dừng lượt đọc cũ rồi mới bắt đầu lượt mới.
+    speechStartTimer = setTimeout(function () {
+        speechStartTimer = null;
+
+        const voices = window.speechSynthesis.getVoices();
+        const vietnameseVoice = voices.find(function (voice) {
+            return /^vi([_-]|$)/i.test(voice.lang);
+        });
+
+        if (!vietnameseVoice) {
+            alert(
+                "Điện thoại chưa có giọng đọc tiếng Việt. " +
+                "Cụ hãy vào Cài đặt > Đọc văn bản (Text-to-speech), " +
+                "tải giọng tiếng Việt rồi thử lại."
+            );
             return;
         }
 
-        const shortText = cleanText.substring(0, 200);
-        const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(shortText)}&tl=vi&client=tw-ob`;
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        currentUtterance = utterance;
 
-        currentAudio = new Audio(ttsUrl);
-        currentAudio.playbackRate = 0.85;
+        utterance.voice = vietnameseVoice;
+        utterance.lang = vietnameseVoice.lang || "vi-VN";
+        utterance.rate = 0.85;
+        utterance.pitch = 1;
+        utterance.volume = 1;
 
-        currentAudio.play().catch(error => {
-            console.warn("Chuyển sang Web Speech API:", error);
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(cleanText);
-                utterance.lang = 'vi-VN';
-                utterance.rate = 0.8;
-                utterance.pitch = 1.1;
-                window.speechSynthesis.speak(utterance);
+        utterance.onend = function () {
+            if (currentUtterance === utterance) {
+                currentUtterance = null;
             }
-        });
-    }
+        };
+
+        utterance.onerror = function (event) {
+            if (currentUtterance === utterance) {
+                currentUtterance = null;
+            }
+
+            if (event.error !== "canceled" &&
+                event.error !== "interrupted") {
+                console.warn("Lỗi đọc văn bản:", event.error);
+            }
+        };
+
+        window.speechSynthesis.speak(utterance);
+    }, 180);
+}
 
     /* 4. GỬI TIN NHẮN (KIỂM TRA BẰNG VĂN BẢN/GIỌNG NÓI ĐÃ CHUYỂN THÀNH CHỮ) */
     async function sendMessage() {
@@ -796,7 +829,7 @@
             const data = await response.json();
             let replyFormatted = (data.reply || "").replace(/\n/g, '<br>');
             let encodedReply = encodeURIComponent(data.reply || "");
-            let alertLevel = data.alert_level || "green";
+            let alertLevel = (data.alert_level || "green").toLowerCase();
 
             let alertBox = "";
 
@@ -811,6 +844,11 @@
                         <button class="speak-btn" onclick="speakText('${encodedReply}')">
                             <i class="fa-solid fa-volume-high"></i> Nghe lại lời khuyên
                         </button>
+                         <button class="speak-btn"
+                            style="background:#DC2626;"
+                            onclick="sendAlertBySms('RED', '${encodedReply.replace(/'/g, "%27")}')">
+                            <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua zalo
+                        </button>
                     </div>
                 `;
             } else if (alertLevel === "orange") {
@@ -823,6 +861,10 @@
                         <div>${replyFormatted}</div>
                         <button class="speak-btn" onclick="speakText('${encodedReply}')">
                             <i class="fa-solid fa-volume-high"></i> Nghe lại lời khuyên
+                        </button>
+                        <button class="speak-btn" style="background:#C2410C;"
+                            onclick="sendAlertBySms('ORANGE', '${encodedReply.replace(/'/g, "%27")}')">
+                            <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua zalo
                         </button>
                     </div>
                 `;
@@ -860,151 +902,417 @@
         chatBody.scrollTop = chatBody.scrollHeight;
     }
 
-    /* 5. NHẬN DẠNG GIỌNG NÓI (LIÊN TỤC & KHÔNG TỰ GỬI TIN NHẮN TỰ ĐỘNG) */
-    let recognition = null;
-    let isRecording = false;
+/* 5. NHẬN DẠNG GIỌNG NÓI - HIỆN CHỮ NGAY KHI CỤ ĐANG NÓI */
 
-    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
-        
-        recognition.lang = 'vi-VN';
-        recognition.continuous = true; // Tiếp tục lắng nghe ngay cả khi dừng nói tạm thời
-        recognition.interimResults = true;
+let recognition = null;
+let isRecording = false;
 
-        recognition.onresult = function (event) {
-            let finalTranscript = '';
-            for (let i = 0; i < event.results.length; ++i) {
-                finalTranscript += event.results[i][0].transcript;
-            }
+let baseTranscript = "";
+let finalTranscript = "";
+let interimTranscript = "";
 
-            const userInput = document.getElementById('userInput');
-            if (userInput) {
-                userInput.value = finalTranscript;
-            }
-        };
+const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
 
-        recognition.onerror = function (event) {
-            console.error("Lỗi micro:", event.error);
-            stopRecordingState();
+if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
 
-            if (event.error === 'not-allowed') {
-                alert("⚠️ Cụ vui lòng cấp quyền cho phép ứng dụng sử dụng Micro.");
-            }
-        };
+    recognition.lang = "vi-VN";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
 
-        recognition.onend = function () {
-            // Duy trì lắng nghe liên tục nếu người dùng chưa bấm nút dừng Mic
-            if (isRecording) {
-                try {
-                    recognition.start();
-                } catch (e) {
-                    stopRecordingState();
-                }
-            } else {
-                stopRecordingState();
-            }
-        };
-    }
+    recognition.onstart = function () {
+        isRecording = true;
 
-    function toggleVoiceInput() {
-        if (!recognition) {
-            alert("⚠️ Trình duyệt chưa hỗ trợ thu âm trực tiếp. Cụ có thể gõ chữ vào ô để kiểm tra nhé!");
-            return;
-        }
-
-        const userInput = document.getElementById('userInput');
-        const micBtn = document.getElementById('micBtn');
-
-        if (isRecording) {
-            // Tắt thu âm
-            isRecording = false;
-            recognition.stop();
-            stopRecordingState();
-        } else {
-            // Bắt đầu thu âm
-            try {
-                userInput.value = '';
-                userInput.placeholder = '🎙️ Đang nghe cụ nói... Cụ cứ nói tự nhiên nhé!';
-                
-                isRecording = true;
-                if (micBtn) {
-                    micBtn.classList.add('recording');
-                }
-
-                recognition.start();
-            } catch (err) {
-                console.error(err);
-                stopRecordingState();
-            }
-        }
-    }
-
-    function stopRecordingState() {
-        isRecording = false;
-        const userInput = document.getElementById('userInput');
-        const micBtn = document.getElementById('micBtn');
-
-        if (userInput) {
-            userInput.placeholder = 'Nhập hoặc nhấn mic để nói...';
-        }
+        const micBtn = document.getElementById("micBtn");
+        const userInput = document.getElementById("userInput");
 
         if (micBtn) {
-            micBtn.classList.remove('recording');
-        }
-    }
-
-    /* 6. BÁO ĐỘNG SOS (Đã lọc sạch số điện thoại để mở thẳng tin nhắn Zalo) */
-    function triggerSOS() {
-        const accountPhone = localStorage.getItem("user_phone");
-
-        if (!accountPhone) {
-            alert("⚠️ Cụ chưa đăng nhập tài khoản.");
-            return;
+            micBtn.classList.add("recording");
         }
 
-        let phone1 = localStorage.getItem("sos_phone1_" + accountPhone) || "";
-        let phone2 = localStorage.getItem("sos_phone2_" + accountPhone) || "";
-
-        // Hàm loại bỏ tất cả ký tự không phải chữ số (chuyển +84948677187 hoặc 0948 677 187 thành 0948677187)
-        const formatPhone = (phone) => {
-            let clean = phone.replace(/\D/g, '');
-            // Nếu số bắt đầu bằng 84, chuyển về 0
-            if (clean.startsWith('84')) {
-                clean = '0' + clean.slice(2);
-            }
-            return clean;
-        };
-
-        phone1 = formatPhone(phone1);
-        phone2 = formatPhone(phone2);
-
-        if (!phone1 && !phone2) {
-            alert("⚠️️ Cụ chưa cài số người thân SOS.");
-            return;
+        if (userInput) {
+            userInput.placeholder = "🎙️ Cụ cứ nói, chữ sẽ hiện dần...";
         }
+    };
 
-        if (phone1 && phone2) {
-            const choice = prompt(
-                "🚨 LIÊN HỆ KHẨN CẤP\n\n" +
-                "Nhập 1 → Người thân 1\n" +
-                "Nhập 2 → Người thân 2"
-            );
+    recognition.onresult = function (event) {
+        const userInput = document.getElementById("userInput");
+        if (!userInput || !event.results) return;
 
-            if (choice === "1" && phone1) {
-                window.location.href = "https://zalo.me/" + phone1;
-            } else if (choice === "2" && phone2) {
-                window.location.href = "https://zalo.me/" + phone2;
+        // Tạo lại nội dung từ kết quả hiện có để tránh lặp chữ.
+        finalTranscript = "";
+        interimTranscript = "";
+
+        for (let i = 0; i < event.results.length; i++) {
+            const result = event.results[i];
+
+            if (!result || !result[0]) continue;
+
+            const words = result[0].transcript;
+
+            if (result.isFinal) {
+                finalTranscript += words;
             } else {
-                alert("⚠️ Cụ chưa chọn người thân hợp lệ.");
-            }
-        } else {
-            const phone = phone1 || phone2;
-            if (confirm("🚨 Mở Zalo để nhắn tin cho người thân?")) {
-                window.location.href = "https://zalo.me/" + phone;
+                interimTranscript += words;
             }
         }
+
+        // Giữ nguyên phần văn bản đã có trước khi bật mic.
+        const spokenText =
+            [finalTranscript, interimTranscript]
+                .filter(part => part.trim())
+                .join(" ");
+
+        userInput.value = baseTranscript
+            ? baseTranscript + (spokenText ? " " + spokenText : "")
+            : spokenText;
+
+        // Cập nhật giao diện ngay khi có kết quả tạm thời.
+        userInput.dispatchEvent(
+            new Event("input", { bubbles: true })
+        );
+
+        userInput.scrollTop = userInput.scrollHeight;
+
+        const chatBody = document.getElementById("chatBody");
+        if (chatBody) {
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+    };
+
+    recognition.onerror = function (event) {
+        console.error("Lỗi nhận diện giọng nói:", event.error);
+
+        if (event.error === "not-allowed" ||
+            event.error === "service-not-allowed") {
+            alert("Cụ vui lòng cho phép Chrome sử dụng micro.");
+        } else if (event.error === "language-not-supported") {
+            alert("Trình duyệt hoặc thiết bị chưa hỗ trợ nhận diện tiếng Việt.");
+        } else if (event.error === "network") {
+            alert("Không kết nối được dịch vụ nhận diện giọng nói. Cụ kiểm tra mạng rồi thử lại.");
+        }
+
+        // Không xóa phần chữ đã nhận được.
+        stopRecordingState();
+    };
+
+    recognition.onend = function () {
+        // Giữ lại toàn bộ nội dung đã hiện trong ô nhập.
+        stopRecordingState();
+    };
+}
+
+function toggleVoiceInput() {
+    if (!recognition) {
+        alert(
+            "Trình duyệt chưa hỗ trợ nhận diện giọng nói. " +
+            "Cụ hãy mở SafeAI bằng Chrome mới nhất hoặc nhập nội dung bằng bàn phím."
+        );
+        return;
     }
+
+    const userInput = document.getElementById("userInput");
+
+    if (isRecording) {
+        try {
+            recognition.stop();
+        } catch (error) {
+            console.warn("Không dừng được mic:", error);
+        }
+
+        stopRecordingState();
+        return;
+    }
+
+    // Lưu nội dung đã nhập để không bị mất khi bật mic.
+    baseTranscript = userInput ? userInput.value.trim() : "";
+    finalTranscript = "";
+    interimTranscript = "";
+
+    try {
+        recognition.start();
+    } catch (error) {
+        console.warn("Không bật được mic:", error);
+        stopRecordingState();
+        alert("Chưa bật được micro. Cụ vui lòng chờ một chút rồi thử lại.");
+    }
+}
+
+function stopRecordingState() {
+    isRecording = false;
+
+    const userInput = document.getElementById("userInput");
+    const micBtn = document.getElementById("micBtn");
+
+    if (userInput) {
+        userInput.placeholder = "Nhập hoặc nhấn mic để nói...";
+    }
+
+    if (micBtn) {
+        micBtn.classList.remove("recording");
+    }
+}
+
+/* 6. BÁO ĐỘNG SOS */
+function triggerSOS() {
+    const accountPhone = localStorage.getItem("user_phone");
+
+    if (!accountPhone) {
+        alert("⚠️ Cụ chưa đăng nhập tài khoản.");
+        return;
+    }
+
+    let phone1 = localStorage.getItem("sos_phone1_" + accountPhone) || "";
+    let phone2 = localStorage.getItem("sos_phone2_" + accountPhone) || "";
+
+    const formatPhone = (phone) => {
+        let clean = phone.replace(/\D/g, "");
+        if (clean.startsWith("84")) {
+            clean = "0" + clean.slice(2);
+        }
+        return clean;
+    };
+
+    phone1 = formatPhone(phone1);
+    phone2 = formatPhone(phone2);
+
+    if (!phone1 && !phone2) {
+        alert("⚠️ Cụ chưa cài số người thân SOS.");
+        return;
+    }
+
+    if (phone1 && phone2) {
+        const choice = prompt(
+            "🚨 LIÊN HỆ KHẨN CẤP\n\n" +
+            "Nhập 1 → Người thân 1\n" +
+            "Nhập 2 → Người thân 2"
+        );
+
+        if (choice === "1") {
+            window.location.href = "https://zalo.me/" + phone1;
+        } else if (choice === "2") {
+            window.location.href = "https://zalo.me/" + phone2;
+        } else {
+            alert("⚠️ Cụ chưa chọn người thân hợp lệ.");
+        }
+    } else {
+        const phone = phone1 || phone2;
+
+        if (confirm("🚨 Mở Zalo để liên hệ người thân?")) {
+            window.location.href = "https://zalo.me/" + phone;
+        }
+    }
+}
+
+/* 6.1. GỬI CẢNH BÁO ĐỎ CHO NGƯỜI THÂN QUA ZALO */
+function sendAlertToZalo(level, message, advice) {
+    if (String(level).toLowerCase() !== "red") return;
+
+    const accountPhone = localStorage.getItem("user_phone");
+
+    if (!accountPhone) {
+        alert("Cụ vui lòng đăng nhập trước nhé!");
+        return;
+    }
+
+    const phone1 = localStorage.getItem("sos_phone1_" + accountPhone) || "";
+    const phone2 = localStorage.getItem("sos_phone2_" + accountPhone) || "";
+
+    if (!phone1 && !phone2) {
+        alert("Cụ vui lòng vào Hồ sơ để đăng ký số điện thoại người thân.");
+        return;
+    }
+
+    let phone = phone1 || phone2;
+
+    if (phone1 && phone2) {
+        const choice = prompt(
+            "🚨 BÁO CẢNH BÁO ĐỎ QUA ZALO\n\n" +
+            "Nhập 1 → Người thân 1\n" +
+            "Nhập 2 → Người thân 2"
+        );
+
+        if (choice === "1") {
+            phone = phone1;
+        } else if (choice === "2") {
+            phone = phone2;
+        } else {
+            return;
+        }
+    }
+
+    const content =
+        "🚨 SAFEAI - CẢNH BÁO NGUY HIỂM\n\n" +
+        "Cụ vừa kiểm tra một nội dung có dấu hiệu lừa đảo mức ĐỎ.\n" +
+        "Người thân vui lòng gọi điện hỏi thăm và hỗ trợ cụ xác minh.\n\n" +
+        "Khuyến cáo: Không chuyển tiền, không cung cấp OTP hoặc mật khẩu khi chưa xác minh.";
+
+    const cleanPhone = phone.replace(/\D/g, "");
+    const zaloPhone = cleanPhone.startsWith("84")
+        ? "0" + cleanPhone.slice(2)
+        : cleanPhone;
+
+    if (!confirm(
+        "SafeAI sẽ mở Zalo để cụ liên hệ người thân.\n" +
+        "Cụ sẽ cần dán nội dung cảnh báo và tự bấm Gửi."
+    )) {
+        return;
+    }
+
+    window.open("https://zalo.me/" + zaloPhone, "_blank");
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(content)
+            .then(() => {
+                alert("Đã sao chép nội dung cảnh báo. Cụ hãy dán vào Zalo rồi bấm Gửi.");
+            })
+            .catch(() => {
+                prompt("Cụ hãy sao chép nội dung này để gửi qua Zalo:", content);
+            });
+    } else {
+        prompt("Cụ hãy sao chép nội dung này để gửi qua Zalo:", content);
+    }
+}
+
+
+
+/* GỬI CẢNH BÁO CHO NGƯỜI THÂN QUA ZALO
+   Hỗ trợ laptop và điện thoại */
+
+
+// GỬI CẢNH BÁO CHO CON CHÁU QUA ZALO
+
+
+async function sendAlertBySms(level, encodedAdvice) {
+    if (level !== "RED" && level !== "ORANGE") return;
+
+    const accountPhone = localStorage.getItem("user_phone");
+
+    if (!accountPhone) {
+        alert("Cụ vui lòng đăng nhập SafeAI trước nhé!");
+        return;
+    }
+
+    const phone1 = localStorage.getItem("sos_phone1_" + accountPhone) || "";
+    const phone2 = localStorage.getItem("sos_phone2_" + accountPhone) || "";
+
+    const relatives = [phone1, phone2]
+        .map(phone => phone.trim())
+        .filter((phone, index, arr) => phone && arr.indexOf(phone) === index);
+
+    if (relatives.length === 0) {
+        alert("Cụ chưa lưu số điện thoại con cháu.\nVui lòng vào Hồ sơ để lưu số điện thoại nhé!");
+        return;
+    }
+
+    // Nếu chỉ có một số, tự chọn số đó.
+    // Nếu có hai số, cho cụ chọn người nhận.
+    let recipient = relatives[0];
+
+    if (relatives.length > 1) {
+        const choice = prompt(
+            "GỬI CẢNH BÁO CHO AI?\n\n" +
+            "Nhập 1: " + relatives[0] + "\n" +
+            "Nhập 2: " + relatives[1],
+            "1"
+        );
+
+        if (choice === null) return;
+
+        if (choice === "1") {
+            recipient = relatives[0];
+        } else if (choice === "2") {
+            recipient = relatives[1];
+        } else {
+            alert("Cụ vui lòng chọn số 1 hoặc số 2 nhé!");
+            return;
+        }
+    }
+
+    let advice = "";
+
+    try {
+        advice = decodeURIComponent(encodedAdvice || "");
+    } catch (error) {
+        advice = encodedAdvice || "";
+    }
+
+    const levelText = level === "RED"
+        ? "CẢNH BÁO ĐỎ - NGUY HIỂM"
+        : "CẢNH BÁO CAM - ĐÁNG NGỜ";
+
+    const message =
+        "🔔 SAFEAI CẢNH BÁO\n\n" +
+        levelText + "\n" +
+        "SafeAI phát hiện tin nhắn có dấu hiệu lừa đảo.\n\n" +
+        (advice ? "Nội dung phân tích: " + advice + "\n\n" : "") +
+        "Con/cháu vui lòng kiểm tra và hỗ trợ ông/bà nhé.\n" +
+        "Không chuyển tiền hoặc cung cấp OTP khi chưa xác minh.";
+
+    // Hiện xác nhận để cụ kiểm tra người nhận.
+    const agreed = confirm(
+        "GỬI CẢNH BÁO CHO CON CHÁU\n\n" +
+        "Số điện thoại: " + recipient + "\n\n" +
+        "SafeAI sẽ sao chép nội dung cảnh báo và mở Zalo.\n" +
+        "Cụ đồng ý tiếp tục chứ?"
+    );
+
+    if (!agreed) return;
+
+    // Mở cửa sổ ngay khi cụ xác nhận để giảm nguy cơ
+    // trình duyệt chặn cửa sổ bật lên.
+    const zaloWindow = window.open("about:blank", "_blank");
+
+    if (!zaloWindow) {
+        alert(
+            "Trình duyệt đang chặn Zalo.\n" +
+            "Cụ vui lòng cho phép mở cửa sổ mới rồi thử lại nhé."
+        );
+        return;
+    }
+
+    // Chuẩn hóa số điện thoại Việt Nam.
+    let cleanPhone = recipient.replace(/\D/g, "");
+
+    if (cleanPhone.startsWith("0084")) {
+        cleanPhone = "0" + cleanPhone.slice(4);
+    } else if (cleanPhone.startsWith("84")) {
+        cleanPhone = "0" + cleanPhone.slice(2);
+    }
+
+    let copied = false;
+
+    // Sao chép trước khi chuyển cửa sổ sang Zalo.
+    try {
+        await navigator.clipboard.writeText(message);
+        copied = true;
+    } catch (error) {
+        console.warn("Không thể tự sao chép nội dung:", error);
+    }
+
+    // Mở liên kết Zalo theo số người nhận.
+    zaloWindow.location.href = "https://zalo.me/" + cleanPhone;
+
+    if (copied) {
+        setTimeout(() => {
+            alert(
+                "ĐÃ CHUẨN BỊ NỘI DUNG CẢNH BÁO!\n\n" +
+                "1. Trong Zalo, mở cuộc trò chuyện với con/cháu.\n" +
+                "2. Nhấn vào ô soạn tin và chọn DÁN.\n" +
+                "3. Nhấn GỬI.\n\n" +
+                "Nội dung đã được sao chép sẵn."
+            );
+        }, 1000);
+    } else {
+        prompt(
+            "Cụ hãy sao chép nội dung dưới đây để gửi trong Zalo:",
+            message
+        );
+    }
+}
+
     /* =========================================================
        7. XỬ LÝ TẢI VÀ GIẢI MÃ ẢNH MÀN HÌNH (CHUẨN GIAO DIỆN ZALO)
     ========================================================= */
@@ -1079,8 +1387,9 @@
                                 <button class="speak-btn" onclick="speakText('${encodedReply}')">
                                     <i class="fa-solid fa-volume-high"></i> Nghe lời khuyên
                                 </button>
-                                <button class="speak-btn" style="background:#DC2626;" onclick="sendAlertToZalo('RED', '[Ảnh màn hình]', '${(data.reply || '').replace(/'/g, "\\'").replace(/\n/g, ' ')}')">
-                                    <i class="fa-solid fa-paper-plane"></i> Báo con cháu qua Zalo
+                                <button class="speak-btn" style="background:#DC2626;"
+                                    onclick="sendAlertBySms('RED', '${encodedReply.replace(/'/g, "%27")}')">
+                                    <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua zalo
                                 </button>
                             </div>
                         </div>
@@ -1097,8 +1406,10 @@
                                 <button class="speak-btn" onclick="speakText('${encodedReply}')">
                                     <i class="fa-solid fa-volume-high"></i> Nghe lời khuyên
                                 </button>
-                                <button class="speak-btn" style="background:#F57C00;" onclick="sendAlertToZalo('ORANGE', '[Ảnh màn hình]', '${(data.reply || '').replace(/'/g, "\\'").replace(/\n/g, ' ')}')">
-                                    <i class="fa-solid fa-paper-plane"></i> Báo con cháu qua Zalo
+                                <button class="speak-btn" style="background:#C2410C;"
+                                    onclick="sendAlertBySms('ORANGE', '${encodedReply.replace(/'/g, "%27")}')">
+                                    <i class="fa-solid fa-comment-sms"></i> Báo con cháu qua zalo
+
                                 </button>
                             </div>
                         </div>
@@ -1121,11 +1432,7 @@
                 loadingDiv.innerHTML = alertBox;
                 speakText(encodedReply);
 
-                // Tự động kích hoạt thông báo Zalo nếu rơi vào mức Đỏ / Cam
-                if ((alertLevel === "red" || alertLevel === "orange") && typeof sendAlertToZalo === 'function') {
-                    sendAlertToZalo(alertLevel, "[Ảnh chụp màn hình có dấu hiệu rủi ro]", data.reply || '');
-                }
-
+            
             } catch (error) {
                 console.error("Lỗi gửi ảnh:", error);
                 loadingDiv.innerHTML = `
