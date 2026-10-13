@@ -902,11 +902,15 @@ function speakText(inputData) {
         chatBody.scrollTop = chatBody.scrollHeight;
     }
 
-/* 5. NHẬN DẠNG GIỌNG NÓI - HIỆN CHỮ NGAY KHI CỤ ĐANG NÓI */
+
+/* 5. NHẬN DẠNG GIỌNG NÓI
+   Nói xong tự tắt mic.
+   Bấm mic lần nữa để nói tiếp, nối nội dung cũ.
+   Không làm lặp chữ trên điện thoại Samsung.
+*/
 
 let recognition = null;
 let isRecording = false;
-
 let baseTranscript = "";
 let finalTranscript = "";
 let interimTranscript = "";
@@ -918,8 +922,10 @@ if (SpeechRecognition) {
     recognition = new SpeechRecognition();
 
     recognition.lang = "vi-VN";
+
+    // Mỗi lần bấm mic chỉ thực hiện một lượt nói.
     recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
     recognition.onstart = function () {
@@ -933,73 +939,79 @@ if (SpeechRecognition) {
         }
 
         if (userInput) {
-            userInput.placeholder = "🎙️ Cụ cứ nói, chữ sẽ hiện dần...";
+            userInput.placeholder =
+                "🎙️ Cụ cứ nói, nói xong mic tự tắt...";
         }
     };
 
     recognition.onresult = function (event) {
         const userInput = document.getElementById("userInput");
-        if (!userInput || !event.results) return;
+        if (!userInput) return;
 
-        // Tạo lại nội dung từ kết quả hiện có để tránh lặp chữ.
-        finalTranscript = "";
-        interimTranscript = "";
+        // Chỉ lấy kết quả của lượt nhận diện hiện tại.
+        let currentFinal = "";
+        let currentInterim = "";
 
         for (let i = 0; i < event.results.length; i++) {
             const result = event.results[i];
-
             if (!result || !result[0]) continue;
 
-            const words = result[0].transcript;
-
             if (result.isFinal) {
-                finalTranscript += words;
+                currentFinal += result[0].transcript;
             } else {
-                interimTranscript += words;
+                currentInterim += result[0].transcript;
             }
         }
 
-        // Giữ nguyên phần văn bản đã có trước khi bật mic.
-        const spokenText =
-            [finalTranscript, interimTranscript]
-                .filter(part => part.trim())
-                .join(" ");
+        finalTranscript = currentFinal;
+        interimTranscript = currentInterim;
+
+        // Hiển thị nội dung cũ + nội dung vừa nói.
+        const newSpeech = (finalTranscript + " " + interimTranscript)
+            .replace(/\s+/g, " ")
+            .trim();
 
         userInput.value = baseTranscript
-            ? baseTranscript + (spokenText ? " " + spokenText : "")
-            : spokenText;
+            ? baseTranscript + (newSpeech ? " " + newSpeech : "")
+            : newSpeech;
 
-        // Cập nhật giao diện ngay khi có kết quả tạm thời.
         userInput.dispatchEvent(
             new Event("input", { bubbles: true })
         );
 
         userInput.scrollTop = userInput.scrollHeight;
-
-        const chatBody = document.getElementById("chatBody");
-        if (chatBody) {
-            chatBody.scrollTop = chatBody.scrollHeight;
-        }
     };
 
     recognition.onerror = function (event) {
-        console.error("Lỗi nhận diện giọng nói:", event.error);
+        console.warn("Lỗi nhận diện giọng nói:", event.error);
 
         if (event.error === "not-allowed" ||
             event.error === "service-not-allowed") {
             alert("Cụ vui lòng cho phép Chrome sử dụng micro.");
         } else if (event.error === "language-not-supported") {
-            alert("Trình duyệt hoặc thiết bị chưa hỗ trợ nhận diện tiếng Việt.");
+            alert("Thiết bị chưa hỗ trợ nhận diện tiếng Việt.");
         } else if (event.error === "network") {
-            alert("Không kết nối được dịch vụ nhận diện giọng nói. Cụ kiểm tra mạng rồi thử lại.");
+            alert("Không kết nối được dịch vụ nhận diện. Cụ kiểm tra mạng nhé.");
         }
 
-        // Không xóa phần chữ đã nhận được.
         stopRecordingState();
     };
 
     recognition.onend = function () {
-        // Giữ lại toàn bộ nội dung đã hiện trong ô nhập.
+        const userInput = document.getElementById("userInput");
+
+        // Chốt nội dung đã nhận được trước khi kết thúc lượt nói.
+        if (userInput) {
+            const newSpeech = (finalTranscript + " " + interimTranscript)
+                .replace(/\s+/g, " ")
+                .trim();
+
+            userInput.value = baseTranscript
+                ? baseTranscript + (newSpeech ? " " + newSpeech : "")
+                : newSpeech;
+        }
+
+        // Tự tắt mic, giữ nguyên nội dung trong ô nhập.
         stopRecordingState();
     };
 }
@@ -1008,7 +1020,7 @@ function toggleVoiceInput() {
     if (!recognition) {
         alert(
             "Trình duyệt chưa hỗ trợ nhận diện giọng nói. " +
-            "Cụ hãy mở SafeAI bằng Chrome mới nhất hoặc nhập nội dung bằng bàn phím."
+            "Cụ hãy mở SafeAI bằng Chrome mới nhất hoặc nhập bằng bàn phím."
         );
         return;
     }
@@ -1026,7 +1038,7 @@ function toggleVoiceInput() {
         return;
     }
 
-    // Lưu nội dung đã nhập để không bị mất khi bật mic.
+    // Lưu nội dung đang có để lượt nói mới nối tiếp nội dung cũ.
     baseTranscript = userInput ? userInput.value.trim() : "";
     finalTranscript = "";
     interimTranscript = "";
@@ -1036,7 +1048,7 @@ function toggleVoiceInput() {
     } catch (error) {
         console.warn("Không bật được mic:", error);
         stopRecordingState();
-        alert("Chưa bật được micro. Cụ vui lòng chờ một chút rồi thử lại.");
+        alert("Chưa bật được micro. Cụ chờ một chút rồi thử lại nhé.");
     }
 }
 
@@ -1054,6 +1066,7 @@ function stopRecordingState() {
         micBtn.classList.remove("recording");
     }
 }
+
 
 /* 6. BÁO ĐỘNG SOS */
 function triggerSOS() {
