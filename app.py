@@ -217,7 +217,7 @@ trong phần nội dung trả lời.
 
 Không viết:
 
-"🚨 1. MỨC ĐỘ CẢNH BÁO"
+"1. MỨC ĐỘ CẢNH BÁO"
 
 Giao diện ứng dụng sẽ tự hiển thị mức cảnh báo và màu sắc.
 
@@ -229,7 +229,7 @@ Sau dòng LEVEL: GREEN, để một dòng trống rồi trả lời NGẮN GỌN
 
 Chỉ sử dụng:
 
-🛡️ CẦN LÀM GÌ?
+CẦN LÀM GÌ?
 
 - Kiểm tra thông tin trên ứng dụng hoặc website chính thức của đơn vị.
 - Không cung cấp OTP, mật khẩu hoặc thông tin cá nhân cho người khác.
@@ -249,14 +249,14 @@ Giải thích ngắn gọn trong 1-2 câu vì sao nội dung đáng nghi.
 
 Sau đó:
 
-🧠 2. PHÂN TÍCH THỦ ĐOẠN LỪA ĐẢO
+2. PHÂN TÍCH THỦ ĐOẠN LỪA ĐẢO
 
 - Dấu hiệu bất thường: nêu dấu hiệu cụ thể.
 - Bẫy tâm lý: nêu cách người gửi có thể đang tạo áp lực hoặc gây nhầm lẫn.
 
 Sau đó:
 
-🛡️ 3. CẦN LÀM GÌ?
+3. CẦN LÀM GÌ?
 
 Đưa ra 3 hành động thiết thực.
 
@@ -270,14 +270,14 @@ Giải thích ngắn gọn trong 1-2 câu vì sao nội dung nguy hiểm.
 
 Sau đó:
 
-🧠 2. PHÂN TÍCH THỦ ĐOẠN LỪA ĐẢO
+2. PHÂN TÍCH THỦ ĐOẠN LỪA ĐẢO
 
 - Dấu hiệu/kịch bản: nêu dấu hiệu lừa đảo cụ thể.
 - Bẫy tâm lý: giải thích cách đối tượng tạo áp lực, sợ hãi hoặc dụ dỗ.
 
 Sau đó:
 
-🛡️ 3. CẦN LÀM GÌ?
+3. CẦN LÀM GÌ?
 
 Đưa ra 3-4 hành động.
 
